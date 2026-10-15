@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Глава 8: Инструкции на лету (Dynamic Prompts) · Oh-My-Opencode — простым языком</title>
+<meta name="description" content="Перевод руководства Oh My OpenCode простым языком.">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<a class="skip" href="#content">Перейти к содержанию</a>
+<header class="topbar">
+  <a class="brand" href="./index.html">Oh-My-Opencode — простым языком</a>
+  <div class="search">
+    <input id="search" type="search" placeholder="Поиск по руководству…  ( / )" autocomplete="off" aria-label="Поиск по руководству">
+    <div id="results" class="results" hidden></div>
+  </div>
+  <button id="theme" class="theme-btn" type="button" aria-label="Переключить тему">Тема</button>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Содержание">
+    <details class="side-toggle" open>
+      <summary>Содержание</summary>
+      <a href="./index.html" class="">Главная</a>
+<a href="./00-architecture.html" class="">Обзор архитектуры</a>
+<a href="./01-plugin-bootstrap.html" class="">01 · Как просыпается OMO</a>
+<a href="./02-sisyphus-planning.html" class="">02 · Начальник получает задание</a>
+<a href="./03-delegation.html" class="">03 · Кто кому что поручает</a>
+<a href="./04-specialist-agents.html" class="">04 · Команда специалистов</a>
+<a href="./05-hook-pipeline.html" class="">05 · Невидимые контролёры</a>
+<a href="./06-error-recovery.html" class="">06 · Когда что-то ломается</a>
+<a href="./07-background-agents.html" class="">07 · Работа в несколько рук</a>
+<a href="./08-dynamic-prompts.html" class="active">08 · Инструкции на лету</a>
+<a href="./09-crafted-tools.html" class="">09 · Крутые инструменты</a>
+<a href="./10-cc-compatibility.html" class="">10 · Дружба со старыми привычками</a>
+<a href="./11-ralph-loop.html" class="">11 · Цикл до победного</a>
+    </details>
+  </nav>
+  <main id="content" class="content">
+<h1>Глава 8: Инструкции на лету (Dynamic Prompts)</h1>
+<blockquote>&gt; <em>&quot;Инструкция, зашитая намертво, — это долг. Инструкция, собранная на лету, — это актив.&quot;</em></blockquote>
+<h2>Что было раньше</h2>
+<p>В <a href="./07-background-agents.html">прошлой главе</a> мы увидели, как Background Agents работают параллельно. А теперь — откуда вообще берутся prompt-инструкции для каждого агента?</p>
+<h2>Зачем это нужно</h2>
+<p>Команда OMO настраиваемая — можно отключить одного из специалистов, добавить свою Category, подключить новый Skill. Если бы prompt Sisyphus был написан один раз и навсегда, например &quot;у тебя есть Oracle, Explore, Librarian&quot;, то при отключённом Librarian Sisyphus всё равно попытался бы позвать несуществующего агента.</p>
+<h2>Как это устроено</h2>
+<h3>Динамический сборщик — dynamic-agent-prompt-builder</h3>
+<p>Prompt Sisyphus собирается из результатов работы <strong>больше десятка отдельных функций</strong>: <code>buildKeyTriggersSection</code>, <code>buildToolSelectionTable</code>, <code>buildExploreSection</code>, <code>buildLibrarianSection</code>, <code>buildDelegationTable</code>, <code>buildCategorySkillsDelegationGuide</code>, <code>buildOracleSection</code>, <code>buildHardBlocksSection</code>, <code>buildAntiPatternsSection</code>, <code>categorizeTools</code> — каждая отвечает за свой раздел.</p>
+<h3>buildKeyTriggersSection — &quot;триггеры&quot;: когда кого звать</h3>
+<p>Эта функция собирает список <strong>Key Triggers</strong> — подсказок вида &quot;если видишь упоминание внешней библиотеки → зови Librarian&quot;. В финальный prompt попадают <strong>только те triggers</strong>, чьи агенты реально доступны прямо сейчас (<code>agents.filter(a =&gt; a.metadata.keyTrigger)</code>). Если Librarian отключили — его подсказка просто не появится.</p>
+<h3>buildToolSelectionTable — таблица &quot;чем пользоваться&quot;</h3>
+<p>Функция строит таблицу <code>Resource | Cost | When to Use</code>: какие Tools и Agents доступны, сколько стоит их использование (<code>FREE</code>, <code>CHEAP</code>, <code>EXPENSIVE</code>), когда их применять. Эта таблица <strong>собирается заново каждый раз</strong> — реально актуальный список того, что есть под рукой прямо сейчас.</p>
+<h3>buildDelegationTable — таблица &quot;кому что передать&quot;</h3>
+<p>Отдельная функция строит <strong>Delegation Table</strong>: для какой области (<code>domain</code>) какой Agent подходит и по какому <code>trigger</code> его нужно звать.</p>
+<h3>Agent Prompt Metadata — каждый специалист сам о себе рассказывает</h3>
+<p>У каждого Agent есть собственное <code>AgentPromptMetadata</code> — например, <code>ORACLE_PROMPT_METADATA</code> содержит <code>category: &quot;advisor&quot;</code>, <code>cost: &quot;EXPENSIVE&quot;</code>, <code>triggers</code>, <code>useWhen</code>, <code>avoidWhen</code>. Sisyphus не хранит эту информацию сам — он <strong>читает её из метаданных</strong> каждого Agent и вставляет в свой prompt.</p>
+<h3>buildCategorySkillsDelegationGuide — подключение Skills и Categories</h3>
+<p>Ещё одна функция перечисляет все доступные Skills и все настроенные Categories, формируя правило &quot;MANDATORY: Evaluate ALL skills for relevance&quot;.</p>
+<h3>Финальная сборка</h3>
+<p>В <code>buildDynamicSisyphusPrompt</code> все части соединяются в один большой <code>&lt;Behavior_Instructions&gt;</code> — Role Sisyphus, keyTriggers, toolSelection, exploreSection и так далее.</p>
+<h2>Схема сборки инструкции</h2>
+<div class="mermaid-wrap"><pre class="mermaid-source"><code>flowchart TD
+    START[&quot;Сборка prompt\nдля Sisyphus&quot;] --&gt; A[&quot;buildKeyTriggersSection\n(только для доступных Agents)&quot;]
+    START --&gt; B[&quot;buildToolSelectionTable&quot;]
+    START --&gt; C[&quot;buildDelegationTable&quot;]
+    START --&gt; D[&quot;Читает AgentPromptMetadata\nкаждого Agent&quot;]
+    START --&gt; E[&quot;buildCategorySkillsDelegationGuide&quot;]
+    A --&gt; F[&quot;Склеить всё\nв единую инструкцию&quot;]
+    B --&gt; F
+    C --&gt; F
+    D --&gt; F
+    E --&gt; F
+    F --&gt; RESULT[&quot;Готовый prompt\nдля Sisyphus прямо сейчас&quot;]</code></pre><div class="mermaid">flowchart TD
+    START[&quot;Сборка prompt\nдля Sisyphus&quot;] --&gt; A[&quot;buildKeyTriggersSection\n(только для доступных Agents)&quot;]
+    START --&gt; B[&quot;buildToolSelectionTable&quot;]
+    START --&gt; C[&quot;buildDelegationTable&quot;]
+    START --&gt; D[&quot;Читает AgentPromptMetadata\nкаждого Agent&quot;]
+    START --&gt; E[&quot;buildCategorySkillsDelegationGuide&quot;]
+    A --&gt; F[&quot;Склеить всё\nв единую инструкцию&quot;]
+    B --&gt; F
+    C --&gt; F
+    D --&gt; F
+    E --&gt; F
+    F --&gt; RESULT[&quot;Готовый prompt\nдля Sisyphus прямо сейчас&quot;]</div></div>
+<h2>Главная мысль</h2>
+<p><strong>Каждый Agent участвует в написании prompt Sisyphus.</strong> Когда у Oracle в <code>ORACLE_PROMPT_METADATA</code> прописаны <code>triggers</code> и <code>useWhen</code> — он тем самым сам сообщает Sisyphus: &quot;в такой ситуации зови меня&quot;. Это не Sisyphus так решил заранее — это каждый Agent <strong>сам заявил о себе</strong> (self-descriptive metadata), а builder автоматически всё расставил по местам.</p>
+<p>Это значит: чтобы добавить нового Agent, не нужно переписывать код Sisyphus — достаточно описать <code>AgentPromptMetadata</code>, и он сам появится в tool matrix и delegation table.</p>
+<h2>Что дальше</h2>
+<p>Dynamic prompt рассказывает агенту, какие Tools доступны. Но инструменты OMO — это не только стандартный набор, встроенный в OpenCode, а гораздо более мощные средства: AST-поиск, LSP-интеграция и постоянная терминальная сессия.</p>
+<p>→ <a href="./09-crafted-tools.html">Глава 9: Крутые инструменты</a></p>
+    <nav class="pager"><a href="./07-background-agents.html">← 07 · Работа в несколько рук</a><a href="./09-crafted-tools.html">09 · Крутые инструменты →</a></nav>
+  </main>
+</div>
+<footer class="foot">Упрощённый пересказ learn-OMO на русском · <a href="https://github.com/yangheng/learn-OMO">оригинал</a></footer>
+<script src="./app.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Глава 1: Как просыпается OMO (Plugin Bootstrap) · Oh-My-Opencode — простым языком</title>
+<meta name="description" content="Перевод руководства Oh My OpenCode простым языком.">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<a class="skip" href="#content">Перейти к содержанию</a>
+<header class="topbar">
+  <a class="brand" href="./index.html">Oh-My-Opencode — простым языком</a>
+  <div class="search">
+    <input id="search" type="search" placeholder="Поиск по руководству…  ( / )" autocomplete="off" aria-label="Поиск по руководству">
+    <div id="results" class="results" hidden></div>
+  </div>
+  <button id="theme" class="theme-btn" type="button" aria-label="Переключить тему">Тема</button>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Содержание">
+    <details class="side-toggle" open>
+      <summary>Содержание</summary>
+      <a href="./index.html" class="">Главная</a>
+<a href="./00-architecture.html" class="">Обзор архитектуры</a>
+<a href="./01-plugin-bootstrap.html" class="active">01 · Как просыпается OMO</a>
+<a href="./02-sisyphus-planning.html" class="">02 · Начальник получает задание</a>
+<a href="./03-delegation.html" class="">03 · Кто кому что поручает</a>
+<a href="./04-specialist-agents.html" class="">04 · Команда специалистов</a>
+<a href="./05-hook-pipeline.html" class="">05 · Невидимые контролёры</a>
+<a href="./06-error-recovery.html" class="">06 · Когда что-то ломается</a>
+<a href="./07-background-agents.html" class="">07 · Работа в несколько рук</a>
+<a href="./08-dynamic-prompts.html" class="">08 · Инструкции на лету</a>
+<a href="./09-crafted-tools.html" class="">09 · Крутые инструменты</a>
+<a href="./10-cc-compatibility.html" class="">10 · Дружба со старыми привычками</a>
+<a href="./11-ralph-loop.html" class="">11 · Цикл до победного</a>
+    </details>
+  </nav>
+  <main id="content" class="content">
+<h1>Глава 1: Как просыпается OMO (Plugin Bootstrap)</h1>
+<blockquote>&gt; <em>&quot;Хороший дирижёр решает исход концерта ещё до первой ноты.&quot;</em></blockquote>
+<h2>С чего всё начинается</h2>
+<p>Ты написал: &quot;Помоги мне переделать вот этот кусок кода&quot;. Обычный ИИ-помощник (<strong>OpenCode</strong>) это увидел. Но прежде чем главный робот-начальник (<strong>Sisyphus</strong>) вообще узнает о твоей просьбе, вся команда OMO (сам <strong>Plugin</strong>) должна сначала &quot;проснуться&quot; и подготовиться — это и есть тема этой главы.</p>
+<h2>Зачем это нужно</h2>
+<p>Сам по себе OpenCode — способный, но &quot;пустой&quot; помощник. Он не знает, какую модель мышления включить для сложной задачи, как исправлять свои ошибки, как делить большую работу на части. Работа OMO-плагина — <strong>добавить все эти умения</strong> в самом начале, ещё до того, как начнётся разговор.</p>
+<h2>Как это происходит</h2>
+<h3>Шаг 1. Plugin включается и читает настройки</h3>
+<p>Когда OpenCode запускается, он зовёт OMO как подключаемый модуль (<strong>Plugin</strong>). Первым делом Plugin читает настройки: какие из его &quot;помощников-контролёров&quot; (<strong>Hooks</strong>) включены, а какие пользователь отключил вручную (<strong>disabled_hooks</strong>).</p>
+<h3>Шаг 2. Собираются контролёры (Hooks)</h3>
+<p>Каждый <strong>Hook</strong> создаётся только если он не выключен в настройках — по принципу переключателя. Например, есть Hook <code>context-window-monitor</code>, который следит за переполнением &quot;оперативной памяти&quot; разговора, есть <code>session-recovery</code>, который умеет восстанавливать разговор после сбоя, есть <code>think-mode</code>, который включает более глубокое размышление для сложных вопросов.</p>
+<p>Представь коробку с рычажками: каждый рычажок — это один Hook. Хочешь — включаешь, хочешь — выключаешь.</p>
+<h3>Шаг 3. Собирается ящик с инструментами (Tools)</h3>
+<p>Параллельно готовится набор <strong>Tools</strong>, которыми будут пользоваться роботы (<strong>Agents</strong>): <code>delegate_task</code> — передать поручение другому агенту, <code>call_omo_agent</code> — вызвать конкретного специалиста напрямую, <code>skill</code> — воспользоваться готовым набором знаний.</p>
+<h3>Шаг 4. Plugin &quot;подписывает договор&quot; с OpenCode</h3>
+<p>В конце Plugin сообщает OpenCode: &quot;Вот что я умею&quot;. Это как список правил в контракте:</p>
+<div class="table-wrap"><table><thead><tr>
+<th>Что регистрируется</th>
+<th>Настоящее название</th>
+<th>Зачем</th>
+</tr></thead><tbody>
+<tr>
+<td>Инструменты</td>
+<td><strong>tool</strong></td>
+<td>Всё, чем могут пользоваться агенты — поиск, передача заданий, работа с терминалом</td>
+</tr>
+<tr>
+<td>Реакция на сообщение</td>
+<td><strong>chat.message</strong></td>
+<td>Что происходит, когда приходит твоё сообщение — проверка ключевых слов, запуск циклов</td>
+</tr>
+<tr>
+<td>Реакция на события</td>
+<td><strong>event</strong></td>
+<td>Обработка системных событий: создание сессии, восстановление после ошибки</td>
+</tr>
+<tr>
+<td>Проверка перед действием</td>
+<td><strong>tool.execute.before</strong></td>
+<td>Может изменить параметры инструмента или вообще запретить его выполнение</td>
+</tr>
+<tr>
+<td>Проверка после действия</td>
+<td><strong>tool.execute.after</strong></td>
+<td>Может исправить ошибку или обрезать слишком длинный ответ</td>
+</tr>
+</tbody></table></div>
+<h3>Шаг 5. Одна дверь — много контролёров (Hooks)</h3>
+<p>Когда происходит любое событие (<strong>event</strong>), оно проходит через <strong>всех</strong> Hooks по очереди — каждый решает сам, нужно ли ему реагировать. Это как контрольно-пропускной пункт с несколькими постами: событие проходит мимо каждого, и каждый пост либо пропускает его дальше, либо что-то с ним делает.</p>
+<h2>Схема запуска</h2>
+<div class="mermaid-wrap"><pre class="mermaid-source"><code>flowchart TD
+    A[&quot;OpenCode запускается&quot;] --&gt; B[&quot;Загружает OMO как Plugin&quot;]
+    B --&gt; C[&quot;Читает настройки:\nчто включено/выключено&quot;]
+    C --&gt; D[&quot;Создаёт Hooks\nпо одному, если включены&quot;]
+    C --&gt; E[&quot;Собирает Tools&quot;]
+    D --&gt; F[&quot;Регистрирует всё в OpenCode:\ntool + event + chat.message&quot;]
+    E --&gt; F
+    F --&gt; G[&quot;Plugin готов&quot;]
+    G --&gt; H[&quot;Твоё сообщение\nпроходит через chat.message\nи цепочку Hooks&quot;]
+    H --&gt; I[&quot;Доходит до Sisyphus —\nглавного Agent&quot;]</code></pre><div class="mermaid">flowchart TD
+    A[&quot;OpenCode запускается&quot;] --&gt; B[&quot;Загружает OMO как Plugin&quot;]
+    B --&gt; C[&quot;Читает настройки:\nчто включено/выключено&quot;]
+    C --&gt; D[&quot;Создаёт Hooks\nпо одному, если включены&quot;]
+    C --&gt; E[&quot;Собирает Tools&quot;]
+    D --&gt; F[&quot;Регистрирует всё в OpenCode:\ntool + event + chat.message&quot;]
+    E --&gt; F
+    F --&gt; G[&quot;Plugin готов&quot;]
+    G --&gt; H[&quot;Твоё сообщение\nпроходит через chat.message\nи цепочку Hooks&quot;]
+    H --&gt; I[&quot;Доходит до Sisyphus —\nглавного Agent&quot;]</div></div>
+<h2>Главная мысль</h2>
+<p><strong>OMO — это не один агент, а целая платформа для агентов.</strong> Работа Plugin — не думать, а <em>собирать команду</em>. За доли секунды он подключает больше 30 Hooks, больше 10 Tools и больше 6 Agents — а затем уходит &quot;за кулисы&quot;. С этого момента каждое твоё сообщение, каждый вызов инструмента, каждое системное событие проходит через эту заранее сплетённую сеть.</p>
+<p>Форму этой сети определяют настройки — <code>disabled_hooks</code> может выключить любой Hook, <code>disabled_agents</code> может убрать любого Agent. Ничего не &quot;зашито намертво&quot; — всё настраивается.</p>
+<h2>Что дальше</h2>
+<p>Команда собралась. Твоё сообщение &quot;переделай этот код&quot; прошло цепочку Hooks и добралось до Sisyphus. Что он с ним сделает?</p>
+<p>→ <a href="./02-sisyphus-planning.html">Глава 2: Начальник получает задание</a></p>
+    <nav class="pager"><a href="./00-architecture.html">← Обзор архитектуры</a><a href="./02-sisyphus-planning.html">02 · Начальник получает задание →</a></nav>
+  </main>
+</div>
+<footer class="foot">Упрощённый пересказ learn-OMO на русском · <a href="https://github.com/yangheng/learn-OMO">оригинал</a></footer>
+<script src="./app.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
+</body>
+</html>

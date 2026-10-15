@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Глава 10: Дружба со старыми привычками (CC Compatibility) · Oh-My-Opencode — простым языком</title>
+<meta name="description" content="Перевод руководства Oh My OpenCode простым языком.">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<a class="skip" href="#content">Перейти к содержанию</a>
+<header class="topbar">
+  <a class="brand" href="./index.html">Oh-My-Opencode — простым языком</a>
+  <div class="search">
+    <input id="search" type="search" placeholder="Поиск по руководству…  ( / )" autocomplete="off" aria-label="Поиск по руководству">
+    <div id="results" class="results" hidden></div>
+  </div>
+  <button id="theme" class="theme-btn" type="button" aria-label="Переключить тему">Тема</button>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Содержание">
+    <details class="side-toggle" open>
+      <summary>Содержание</summary>
+      <a href="./index.html" class="">Главная</a>
+<a href="./00-architecture.html" class="">Обзор архитектуры</a>
+<a href="./01-plugin-bootstrap.html" class="">01 · Как просыпается OMO</a>
+<a href="./02-sisyphus-planning.html" class="">02 · Начальник получает задание</a>
+<a href="./03-delegation.html" class="">03 · Кто кому что поручает</a>
+<a href="./04-specialist-agents.html" class="">04 · Команда специалистов</a>
+<a href="./05-hook-pipeline.html" class="">05 · Невидимые контролёры</a>
+<a href="./06-error-recovery.html" class="">06 · Когда что-то ломается</a>
+<a href="./07-background-agents.html" class="">07 · Работа в несколько рук</a>
+<a href="./08-dynamic-prompts.html" class="">08 · Инструкции на лету</a>
+<a href="./09-crafted-tools.html" class="">09 · Крутые инструменты</a>
+<a href="./10-cc-compatibility.html" class="active">10 · Дружба со старыми привычками</a>
+<a href="./11-ralph-loop.html" class="">11 · Цикл до победного</a>
+    </details>
+  </nav>
+  <main id="content" class="content">
+<h1>Глава 10: Дружба со старыми привычками (CC Compatibility)</h1>
+<blockquote>&gt; <em>&quot;Не заставляй пользователя менять привычки под инструмент — пусть инструмент подстраивается под привычки пользователя.&quot;</em></blockquote>
+<h2>Что было раньше</h2>
+<p>В <a href="./09-crafted-tools.html">прошлой главе</a> мы увидели набор продвинутых Tools OMO. Но многие пользователи приходят из другого похожего продукта — <strong>Claude Code</strong>, и у них уже есть своя папка <code>.claude</code>, файл <code>CLAUDE.md</code>, свои Hooks и подключённые MCP-серверы.</p>
+<h2>Зачем это нужно</h2>
+<p>Когда человек переходит с Claude Code на OpenCode + OMO, он не должен настраивать всё заново. Всё, что уже есть — <code>CLAUDE.md</code>, <code>.claude/settings.json</code>, кастомные hooks, MCP servers — должно <strong>заработать сразу же</strong>, без переделки.</p>
+<h2>Как это устроено</h2>
+<h3>Claude Code Hooks — переходник для чужих контролёров</h3>
+<p>Модуль <code>claude-code-hooks</code> — это &quot;hook для hooks&quot;: он загружает конфигурацию hooks в формате Claude Code и адаптирует её к интерфейсу OpenCode. Поддерживаются: <code>pre-tool-use</code>, <code>post-tool-use</code>, <code>stop</code>, <code>user-prompt-submit</code>, <code>todo</code>, <code>transcript</code>.</p>
+<h3>Claude Code Agent Loader — загрузчик специалистов из старого формата</h3>
+<p>Модуль <code>claude-code-agent-loader</code> находит кастомных агентов, определённых в папке <code>.claude/</code>, и превращает их в формат <code>AgentConfig</code>, понятный OpenCode.</p>
+<h3>Claude Code Command Loader — загрузчик команд</h3>
+<p>Похожим образом <code>claude-code-command-loader</code> загружает пользовательские slash-команды из формата Claude Code и регистрирует их как обычные команды OpenCode.</p>
+<h3>Claude Code MCP Loader — загрузчик подключённых сервисов</h3>
+<p>Модуль <code>claude-code-mcp-loader</code> читает конфигурацию MCP-серверов из <code>.claude/settings.json</code> и превращает их в формат MCP, понятный OpenCode (включая <code>env-expander</code> для переменных окружения).</p>
+<h3>Claude Code Session State — память о сессиях</h3>
+<p>Модуль <code>claude-code-session-state</code> следит за тем, какая сессия главная (<code>setMainSession</code>), какие — дочерние, и какой agent за какую сессию отвечает (<code>setSessionAgent</code>).</p>
+<h3>Skill Loader — загрузчик шпаргалок из четырёх мест</h3>
+<p>Skills подгружаются сразу из четырёх источников и объединяются функцией <code>mergeSkills</code>:</p>
+<ul>
+<li><code>discoverUserClaudeSkills</code> — личная папка <code>~/.claude/</code></li>
+<li><code>discoverProjectClaudeSkills</code> — папка проекта <code>.claude/</code></li>
+<li><code>discoverOpencodeGlobalSkills</code> — глобальные skills OpenCode</li>
+<li><code>discoverOpencodeProjectSkills</code> — skills проекта в формате OpenCode</li>
+</ul>
+<h3>Переключатель совместимости</h3>
+<p>Настройка <code>pluginConfig.claude_code?.skills !== false</code> позволяет пользователю отключить весь слой совместимости с Claude Code одной строкой конфигурации.</p>
+<h2>Схема совместимости</h2>
+<div class="mermaid-wrap"><pre class="mermaid-source"><code>flowchart TD
+    OLD[&quot;Настройки Claude Code\n(.claude/, CLAUDE.md)&quot;] --&gt; A[&quot;claude-code-hooks\nпереходник Hooks&quot;]
+    OLD --&gt; B[&quot;claude-code-agent-loader&quot;]
+    OLD --&gt; C[&quot;claude-code-command-loader&quot;]
+    OLD --&gt; D[&quot;claude-code-mcp-loader&quot;]
+    OLD --&gt; E[&quot;Skill Loader\n(4 источника)&quot;]
+    A --&gt; OMO[&quot;Работает внутри OMO&quot;]
+    B --&gt; OMO
+    C --&gt; OMO
+    D --&gt; OMO
+    E --&gt; OMO</code></pre><div class="mermaid">flowchart TD
+    OLD[&quot;Настройки Claude Code\n(.claude/, CLAUDE.md)&quot;] --&gt; A[&quot;claude-code-hooks\nпереходник Hooks&quot;]
+    OLD --&gt; B[&quot;claude-code-agent-loader&quot;]
+    OLD --&gt; C[&quot;claude-code-command-loader&quot;]
+    OLD --&gt; D[&quot;claude-code-mcp-loader&quot;]
+    OLD --&gt; E[&quot;Skill Loader\n(4 источника)&quot;]
+    A --&gt; OMO[&quot;Работает внутри OMO&quot;]
+    B --&gt; OMO
+    C --&gt; OMO
+    D --&gt; OMO
+    E --&gt; OMO</div></div>
+<h2>Главная мысль</h2>
+<p><strong>Совместимость с Claude Code — это не компромисс, а уважение к чужому времени.</strong> Пользователи Claude Code могли потратить недели на настройку hooks, написание <code>CLAUDE.md</code>, подключение MCP servers. Слой совместимости в OMO гарантирует, что этот труд не пропадёт впустую — всё переезжает и сразу работает.</p>
+<p>Заодно это делает OMO расширяемым: теперь Hook Pipeline понимает и родной формат OMO, и формат Claude Code одновременно. Можно мигрировать постепенно — а можно вообще никогда не мигрировать полностью.</p>
+<h2>Что дальше</h2>
+<p>Все механизмы на месте: команда Agents, Hook Pipeline, Error Recovery, Background Agents. Остался последний вопрос — как заставить задачу <strong>выполняться автоматически до самого конца</strong>, без постоянного вмешательства человека?</p>
+<p>→ <a href="./11-ralph-loop.html">Глава 11: Цикл до победного</a></p>
+    <nav class="pager"><a href="./09-crafted-tools.html">← 09 · Крутые инструменты</a><a href="./11-ralph-loop.html">11 · Цикл до победного →</a></nav>
+  </main>
+</div>
+<footer class="foot">Упрощённый пересказ learn-OMO на русском · <a href="https://github.com/yangheng/learn-OMO">оригинал</a></footer>
+<script src="./app.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
+</body>
+</html>

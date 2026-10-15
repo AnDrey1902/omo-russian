@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Обзор: как устроен OMO целиком · Oh-My-Opencode — простым языком</title>
+<meta name="description" content="Перевод руководства Oh My OpenCode простым языком.">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<a class="skip" href="#content">Перейти к содержанию</a>
+<header class="topbar">
+  <a class="brand" href="./index.html">Oh-My-Opencode — простым языком</a>
+  <div class="search">
+    <input id="search" type="search" placeholder="Поиск по руководству…  ( / )" autocomplete="off" aria-label="Поиск по руководству">
+    <div id="results" class="results" hidden></div>
+  </div>
+  <button id="theme" class="theme-btn" type="button" aria-label="Переключить тему">Тема</button>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Содержание">
+    <details class="side-toggle" open>
+      <summary>Содержание</summary>
+      <a href="./index.html" class="">Главная</a>
+<a href="./00-architecture.html" class="active">Обзор архитектуры</a>
+<a href="./01-plugin-bootstrap.html" class="">01 · Как просыпается OMO</a>
+<a href="./02-sisyphus-planning.html" class="">02 · Начальник получает задание</a>
+<a href="./03-delegation.html" class="">03 · Кто кому что поручает</a>
+<a href="./04-specialist-agents.html" class="">04 · Команда специалистов</a>
+<a href="./05-hook-pipeline.html" class="">05 · Невидимые контролёры</a>
+<a href="./06-error-recovery.html" class="">06 · Когда что-то ломается</a>
+<a href="./07-background-agents.html" class="">07 · Работа в несколько рук</a>
+<a href="./08-dynamic-prompts.html" class="">08 · Инструкции на лету</a>
+<a href="./09-crafted-tools.html" class="">09 · Крутые инструменты</a>
+<a href="./10-cc-compatibility.html" class="">10 · Дружба со старыми привычками</a>
+<a href="./11-ralph-loop.html" class="">11 · Цикл до победного</a>
+    </details>
+  </nav>
+  <main id="content" class="content">
+<h1>Обзор: как устроен OMO целиком</h1>
+<blockquote>&gt; Читается за 5 минут. Это карта всей системы — держи её в уме, пока читаешь остальные главы. В скобках — настоящие термины OMO.</blockquote>
+<h2>Если совсем коротко</h2>
+<p>OMO (<strong>Plugin</strong>, надстройка над OpenCode) — это надстройка над обычным ИИ-помощником по программированию. Она добавляет:</p>
+<ul>
+<li><strong>больше 8 роботов-специалистов (Agents)</strong> — каждый умеет что-то одно, но очень хорошо;</li>
+<li><strong>невидимую сеть контролёров (Hooks)</strong>, которые незаметно улучшают каждый шаг;</li>
+<li><strong>цикл, который сам себя перезапускает (Ralph Loop)</strong>, пока задача не будет полностью закончена.</li>
+</ul>
+<p>Самая интересная идея — <strong>конвейер из трёх проверяющих</strong>: Prometheus (придумывает план), Metis (ищет в нём дыры) и Momus (придирчиво проверяет и заворачивает обратно, если что-то не так). Это как если бы твою домашнюю работу сначала писал один человек, потом её перепроверял второй, а третий — самый вредный учитель — не ставил зачёт, пока не исправишь все ошибки.</p>
+<h2>Главные решения и зачем они нужны</h2>
+<div class="table-wrap"><table><thead><tr>
+<th>Решение</th>
+<th>Зачем</th>
+<th>Какая за это цена</th>
+</tr></thead><tbody>
+<tr>
+<td>Роботы (Agents) не помогают друг другу напрямую, а только через &quot;передачу поручения&quot; (<strong>delegate_task</strong>)</td>
+<td>Каждый чётко знает свою роль, никто не путается</td>
+<td>Немного медленнее — есть лишний шаг передачи</td>
+</tr>
+<tr>
+<td>Планировщику (<strong>Prometheus</strong>) <strong>запрещено</strong> писать код (это следят &quot;по-настоящему&quot; через Hook, а не на словах)</td>
+<td>Планировщик никогда не начнёт тайком кодить вместо того, чтобы планировать</td>
+<td>Нужен отдельный Hook-страж, который это проверяет</td>
+</tr>
+<tr>
+<td>Критик (<strong>Momus</strong>) проверяет не &quot;хорош ли план&quot;, а &quot;понятно ли по нему работать&quot;</td>
+<td>Критик не лезет не в своё дело — не переделывает чужие решения</td>
+<td>Критик может пропустить плохую идею, если она чётко описана</td>
+</tr>
+<tr>
+<td>Система (<strong>Ralph Loop</strong>) сама перезапускает работу, пока не увидит сигнал &quot;Готово&quot; (<strong>Completion Promise</strong>)</td>
+<td>ИИ часто не успевает закончить за один &quot;присест&quot; — цикл гарантирует результат</td>
+<td>Есть потолок — не больше 100 попыток подряд (<strong>max_iterations</strong>)</td>
+</tr>
+<tr>
+<td>Контролёры (<strong>Hooks</strong>) работают незаметно для роботов</td>
+<td>Инструкции для роботов остаются короткими и понятными</td>
+<td>Труднее разбираться, если что-то идёт не так</td>
+</tr>
+<tr>
+<td>Часть роботов работает &quot;в фоне&quot; — параллельно (<strong>Background Agents</strong>)</td>
+<td>Не тормозит общий разговор, можно изучать сразу несколько направлений</td>
+<td>Нужно управлять очередями и ограничениями</td>
+</tr>
+</tbody></table></div>
+<h2>Четыре сценария совместной работы</h2>
+<h3>Сценарий 1 — Простая задача</h3>
+<p>Ты просишь переименовать переменную. Сизиф (<strong>Sisyphus</strong>, главный агент) делает это сам, без посторонней помощи, и <strong>Ralph Loop</strong> проверяет: &quot;Готово? Да. Всё.&quot;</p>
+<pre><code>Ты → Sisyphus → [делает сам инструментами, Tools] → Ralph Loop проверяет &lt;promise&gt;DONE&lt;/promise&gt; → конец</code></pre>
+<h3>Сценарий 2 — Задача средней сложности</h3>
+<p>Sisyphus понимает, что один не справится, и зовёт на помощь специалистов (<strong>delegate_task</strong>):</p>
+<ul>
+<li><strong>Explore (Следопыт)</strong> — ищет нужный код внутри проекта. Бесплатно и быстро.</li>
+<li><strong>Librarian (Библиотекарь)</strong> — ищет информацию в интернете и документации. Недорого.</li>
+<li><strong>Oracle (Мудрец)</strong> — думает над сложными архитектурными решениями. Дорого, зовут редко.</li>
+</ul>
+<p>Sisyphus может позвать Explore и Librarian <em>одновременно</em> (в фоне, <strong>run_in_background=true</strong>), не дожидаясь ответа одного, прежде чем спросить другого.</p>
+<h3>Сценарий 3 — Сложная задача: конвейер из трёх проверяющих ⭐</h3>
+<p>Это самая важная идея всей системы.</p>
+<ul>
+<li><strong>Prometheus (Стратег)</strong> беседует с тобой и выясняет, чего ты на самом деле хочешь. Ему <strong>запрещено</strong> писать код (это отслеживает Hook под названием <code>prometheus-md-only</code>) — только вопросы и план на бумаге (<code>.md</code>-файл).</li>
+<li><strong>Metis (Советник)</strong> проверяет план <em>до</em> того, как он готов — не упустили ли чего-то важного, нет ли скрытых ловушек.</li>
+<li><strong>Momus (Критик)</strong> — самый придирчивый. Он читает план и, если находит нестыковки, отправляет его обратно на доработку. По статистике, план в среднем возвращают на переделку 7 раз, прежде чем он получает &quot;ОК&quot; (<strong>OKAY</strong>).</li>
+</ul>
+<p>Только после этого начинается настоящая работа.</p>
+<h3>Сценарий 4 — Огромная задача: работа в несколько рук</h3>
+<p>Для по-настоящему больших задач подключается <strong>Atlas (Дирижёр)</strong> — он через <code>delegate_task()</code> раздаёт куски работы сразу нескольким агентам, которые трудятся параллельно, как оркестр под управлением дирижёра.</p>
+<h2>Схема: кто с кем общается</h2>
+<div class="mermaid-wrap"><pre class="mermaid-source"><code>flowchart TD
+    U[&quot;Ты пишешь задачу&quot;] --&gt; S[&quot;Sisyphus (Сизиф)\nглавный агент-оркестратор&quot;]
+    S --&gt;|простая задача| DIY[&quot;Делает сам (Tools)&quot;]
+    S --&gt;|нужна помощь| DEL[&quot;delegate_task\nпередаёт поручения&quot;]
+    DEL --&gt; EX[&quot;Explore (Следопыт)\nищет в коде&quot;]
+    DEL --&gt; LIB[&quot;Librarian (Библиотекарь)\nищет в интернете&quot;]
+    DEL --&gt; OR[&quot;Oracle (Мудрец)\nдаёт совет&quot;]
+    S --&gt;|сложная задача| PROM[&quot;Prometheus (Стратег)\nсоставляет план&quot;]
+    PROM --&gt; MET[&quot;Metis (Советник)\nищет пробелы в плане&quot;]
+    MET --&gt; PROM
+    PROM --&gt; MOM[&quot;Momus (Критик)\nпроверяет план&quot;]
+    MOM --&gt;|не годится| PROM
+    MOM --&gt;|OKAY| WORK[&quot;Начинается работа&quot;]
+    S --&gt;|огромная задача| ATL[&quot;Atlas (Дирижёр)\nраздаёт куски работы&quot;]
+    ATL --&gt; W1[&quot;Agent 1&quot;]
+    ATL --&gt; W2[&quot;Agent 2&quot;]
+    ATL --&gt; W3[&quot;Agent 3&quot;]</code></pre><div class="mermaid">flowchart TD
+    U[&quot;Ты пишешь задачу&quot;] --&gt; S[&quot;Sisyphus (Сизиф)\nглавный агент-оркестратор&quot;]
+    S --&gt;|простая задача| DIY[&quot;Делает сам (Tools)&quot;]
+    S --&gt;|нужна помощь| DEL[&quot;delegate_task\nпередаёт поручения&quot;]
+    DEL --&gt; EX[&quot;Explore (Следопыт)\nищет в коде&quot;]
+    DEL --&gt; LIB[&quot;Librarian (Библиотекарь)\nищет в интернете&quot;]
+    DEL --&gt; OR[&quot;Oracle (Мудрец)\nдаёт совет&quot;]
+    S --&gt;|сложная задача| PROM[&quot;Prometheus (Стратег)\nсоставляет план&quot;]
+    PROM --&gt; MET[&quot;Metis (Советник)\nищет пробелы в плане&quot;]
+    MET --&gt; PROM
+    PROM --&gt; MOM[&quot;Momus (Критик)\nпроверяет план&quot;]
+    MOM --&gt;|не годится| PROM
+    MOM --&gt;|OKAY| WORK[&quot;Начинается работа&quot;]
+    S --&gt;|огромная задача| ATL[&quot;Atlas (Дирижёр)\nраздаёт куски работы&quot;]
+    ATL --&gt; W1[&quot;Agent 1&quot;]
+    ATL --&gt; W2[&quot;Agent 2&quot;]
+    ATL --&gt; W3[&quot;Agent 3&quot;]</div></div>
+<h2>Что дальше</h2>
+<p>Дальше мы разберём каждую часть этой картины подробно — начиная с самого первого шага: как вся эта команда вообще собирается перед началом работы (<strong>Plugin Bootstrap</strong>).</p>
+<p>→ <a href="./01-plugin-bootstrap.html">Глава 1: Как просыпается OMO</a></p>
+    <nav class="pager"><a href="./index.html">← Главная</a><a href="./01-plugin-bootstrap.html">01 · Как просыпается OMO →</a></nav>
+  </main>
+</div>
+<footer class="foot">Упрощённый пересказ learn-OMO на русском · <a href="https://github.com/yangheng/learn-OMO">оригинал</a></footer>
+<script src="./app.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
+</body>
+</html>

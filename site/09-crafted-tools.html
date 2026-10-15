@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Глава 9: Крутые инструменты (Crafted Tools) · Oh-My-Opencode — простым языком</title>
+<meta name="description" content="Перевод руководства Oh My OpenCode простым языком.">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<a class="skip" href="#content">Перейти к содержанию</a>
+<header class="topbar">
+  <a class="brand" href="./index.html">Oh-My-Opencode — простым языком</a>
+  <div class="search">
+    <input id="search" type="search" placeholder="Поиск по руководству…  ( / )" autocomplete="off" aria-label="Поиск по руководству">
+    <div id="results" class="results" hidden></div>
+  </div>
+  <button id="theme" class="theme-btn" type="button" aria-label="Переключить тему">Тема</button>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Содержание">
+    <details class="side-toggle" open>
+      <summary>Содержание</summary>
+      <a href="./index.html" class="">Главная</a>
+<a href="./00-architecture.html" class="">Обзор архитектуры</a>
+<a href="./01-plugin-bootstrap.html" class="">01 · Как просыпается OMO</a>
+<a href="./02-sisyphus-planning.html" class="">02 · Начальник получает задание</a>
+<a href="./03-delegation.html" class="">03 · Кто кому что поручает</a>
+<a href="./04-specialist-agents.html" class="">04 · Команда специалистов</a>
+<a href="./05-hook-pipeline.html" class="">05 · Невидимые контролёры</a>
+<a href="./06-error-recovery.html" class="">06 · Когда что-то ломается</a>
+<a href="./07-background-agents.html" class="">07 · Работа в несколько рук</a>
+<a href="./08-dynamic-prompts.html" class="">08 · Инструкции на лету</a>
+<a href="./09-crafted-tools.html" class="active">09 · Крутые инструменты</a>
+<a href="./10-cc-compatibility.html" class="">10 · Дружба со старыми привычками</a>
+<a href="./11-ralph-loop.html" class="">11 · Цикл до победного</a>
+    </details>
+  </nav>
+  <main id="content" class="content">
+<h1>Глава 9: Крутые инструменты (Crafted Tools)</h1>
+<blockquote>&gt; <em>&quot;Обычный поиск текста находит буквы. Поиск по структуре находит форму. Понимание смысла кода находит связи. Вместе коду негде спрятаться.&quot;</em></blockquote>
+<h2>Что было раньше</h2>
+<p>В <a href="./08-dynamic-prompts.html">прошлой главе</a> мы увидели, как собирается prompt для Sisyphus — он рассказывает, какие Tools доступны. Теперь посмотрим, насколько эти Tools мощные.</p>
+<h2>Зачем это нужно</h2>
+<p>Обычных <code>grep</code> и <code>read</code>, встроенных в OpenCode, достаточно для простых поисков. Но для настоящей переделки кода нужно: <strong>структурно-осознанный поиск</strong> (&quot;найди все <code>export async function</code> с двумя параметрами&quot;), <strong>семантическое понимание</strong> (&quot;где именно используется эта функция?&quot;) и постоянная терминальная сессия.</p>
+<h2>Инструменты команды</h2>
+<h3>ast_grep_search — AST-осознанный поиск кода</h3>
+<p><code>ast_grep_search</code> под капотом вызывает CLI-утилиту <a href="https://ast-grep.github.io/">ast-grep</a>. Он понимает не текст, а <strong>структуру кода (AST)</strong> — поддерживает 25 языков программирования и мета-переменные: <code>$VAR</code> (один узел), <code>$$$</code> (несколько узлов). Например:</p>
+<pre><code>pattern: &quot;export async function $NAME($$$) { $$$ }&quot;   // все async-функции
+pattern: &quot;console.log($MSG)&quot;                            // все вызовы console.log</code></pre>
+<p>Есть парный инструмент <code>ast_grep_replace</code> (с <code>dryRun=true</code> для предпросмотра) для структурной замены кода.</p>
+<p>Умный бонус: если поиск ничего не нашёл (<code>getEmptyResultHint</code>), инструмент проверяет типичные ошибки в шаблоне и подсказывает, как его поправить — например, для Python убрать лишнее двоеточие в конце.</p>
+<h3>LSP Tools — набор инструментов уровня IDE</h3>
+<p>Есть целый набор инструментов, подключённых к настоящему Language Server:</p>
+<ul>
+<li><code>lsp_goto_definition</code> — перейти к определению</li>
+<li><code>lsp_find_references</code> — найти все места использования</li>
+<li><code>lsp_symbols</code> — список символов файла/проекта</li>
+<li><code>lsp_diagnostics</code> — ошибки и предупреждения</li>
+<li><code>lsp_prepare_rename</code> / <code>lsp_rename</code> — проверка и безопасное переименование</li>
+</ul>
+<p>Разница с <code>grep</code> огромная: <code>lsp_find_references</code> находит <strong>все настоящие семантические связи</strong> — включая типы, импорты и повторный экспорт, а не просто текстовые совпадения.</p>
+<p><code>lsp_diagnostics</code> — это команда-валидатор Sisyphus: после каждого изменения он обязан её запускать, чтобы убедиться в отсутствии ошибок типов.</p>
+<h3>interactive_bash — постоянная терминальная сессия</h3>
+<p><code>interactive_bash</code> — это не обычный <code>exec</code>, а <strong>постоянная (persistent) bash-сессия</strong>: переменные окружения, рабочая директория, фоновые процессы сохраняются между вызовами. Отдельный Hook <code>interactive-bash-session</code> следит за жизненным циклом такой сессии.</p>
+<h3>categorizeTools — классификация инструментов</h3>
+<p>Функция <code>categorizeTools</code> автоматически распределяет инструменты по категориям по префиксу имени: <code>lsp_<em></code> → категория &quot;lsp&quot;, <code>ast_grep</em></code> → &quot;ast&quot;, <code>grep</code>/<code>glob</code> → &quot;search&quot;, <code>session_*</code> → &quot;session&quot;.</p>
+<h3>Сравнение инструментов</h3>
+<div class="table-wrap"><table><thead><tr>
+<th>Tool</th>
+<th>Как ищет</th>
+<th>Когда лучше всего подходит</th>
+</tr></thead><tbody>
+<tr>
+<td><code>grep</code></td>
+<td>Текстовое совпадение</td>
+<td>Строки, комментарии, логи</td>
+</tr>
+<tr>
+<td><code>glob</code></td>
+<td>Совпадение имени файла</td>
+<td>Найти файл по названию/расширению</td>
+</tr>
+<tr>
+<td><code>ast_grep_search</code></td>
+<td>AST-структура</td>
+<td>Сигнатуры функций, шаблоны кода</td>
+</tr>
+<tr>
+<td><code>lsp_find_references</code></td>
+<td>Семантические связи</td>
+<td>Анализ влияния перед рефакторингом</td>
+</tr>
+<tr>
+<td><code>lsp_diagnostics</code></td>
+<td>Проверка типов</td>
+<td>Проверить код после правки</td>
+</tr>
+<tr>
+<td><code>lsp_rename</code></td>
+<td>Семантическая замена</td>
+<td>Безопасное переименование символа</td>
+</tr>
+</tbody></table></div>
+<h2>Схема набора инструментов</h2>
+<div class="mermaid-wrap"><pre class="mermaid-source"><code>flowchart LR
+    Q[&quot;Нужно найти\nили изменить код&quot;] --&gt; D{&quot;Что именно\nнужно?&quot;}
+    D --&gt;|текст| GREP[&quot;grep&quot;]
+    D --&gt;|форма кода| AST[&quot;ast_grep_search&quot;]
+    D --&gt;|все места использования| REF[&quot;lsp_find_references&quot;]
+    D --&gt;|проверить после правки| DIAG[&quot;lsp_diagnostics&quot;]
+    D --&gt;|переименовать безопасно| REN[&quot;lsp_rename&quot;]
+    AST --&gt; RES[&quot;Результат&quot;]
+    REF --&gt; RES
+    DIAG --&gt; RES
+    REN --&gt; RES
+    GREP --&gt; RES</code></pre><div class="mermaid">flowchart LR
+    Q[&quot;Нужно найти\nили изменить код&quot;] --&gt; D{&quot;Что именно\nнужно?&quot;}
+    D --&gt;|текст| GREP[&quot;grep&quot;]
+    D --&gt;|форма кода| AST[&quot;ast_grep_search&quot;]
+    D --&gt;|все места использования| REF[&quot;lsp_find_references&quot;]
+    D --&gt;|проверить после правки| DIAG[&quot;lsp_diagnostics&quot;]
+    D --&gt;|переименовать безопасно| REN[&quot;lsp_rename&quot;]
+    AST --&gt; RES[&quot;Результат&quot;]
+    REF --&gt; RES
+    DIAG --&gt; RES
+    REN --&gt; RES
+    GREP --&gt; RES</div></div>
+<h2>Главная мысль</h2>
+<p><strong>Инструменты OMO — это не &#x27;улучшенные команды shell&#x27;, а API-доступ к возможностям целой IDE.</strong> LSP tools дают агенту семантическое понимание уровня VS Code: goto definition, find references, safe rename, real-time diagnostics. ast-grep добавляет структурный поиск.</p>
+<p>Вместе это позволяет агенту при рефакторинге: сначала <code>lsp_find_references</code>, чтобы понять зону влияния, затем <code>ast_grep_search</code>, чтобы найти все совпадения по шаблону, а после правки — <code>lsp_diagnostics</code> для проверки. Именно поэтому в prompt Sisyphus написано: &quot;your code should be indistinguishable from a senior engineer&#x27;s&quot; — потому что у него в руках инструментарий senior-инженера.</p>
+<h2>Что дальше</h2>
+<p>Многие пользователи переходят к OMO из другого похожего инструмента — Claude Code. Как OMO делает этот переход бесшовным?</p>
+<p>→ <a href="./10-cc-compatibility.html">Глава 10: Дружба со старыми привычками</a></p>
+    <nav class="pager"><a href="./08-dynamic-prompts.html">← 08 · Инструкции на лету</a><a href="./10-cc-compatibility.html">10 · Дружба со старыми привычками →</a></nav>
+  </main>
+</div>
+<footer class="foot">Упрощённый пересказ learn-OMO на русском · <a href="https://github.com/yangheng/learn-OMO">оригинал</a></footer>
+<script src="./app.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
+</body>
+</html>

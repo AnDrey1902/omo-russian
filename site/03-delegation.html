@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Глава 3: Кто кому что поручает (Delegation) · Oh-My-Opencode — простым языком</title>
+<meta name="description" content="Перевод руководства Oh My OpenCode простым языком.">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<a class="skip" href="#content">Перейти к содержанию</a>
+<header class="topbar">
+  <a class="brand" href="./index.html">Oh-My-Opencode — простым языком</a>
+  <div class="search">
+    <input id="search" type="search" placeholder="Поиск по руководству…  ( / )" autocomplete="off" aria-label="Поиск по руководству">
+    <div id="results" class="results" hidden></div>
+  </div>
+  <button id="theme" class="theme-btn" type="button" aria-label="Переключить тему">Тема</button>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Содержание">
+    <details class="side-toggle" open>
+      <summary>Содержание</summary>
+      <a href="./index.html" class="">Главная</a>
+<a href="./00-architecture.html" class="">Обзор архитектуры</a>
+<a href="./01-plugin-bootstrap.html" class="">01 · Как просыпается OMO</a>
+<a href="./02-sisyphus-planning.html" class="">02 · Начальник получает задание</a>
+<a href="./03-delegation.html" class="active">03 · Кто кому что поручает</a>
+<a href="./04-specialist-agents.html" class="">04 · Команда специалистов</a>
+<a href="./05-hook-pipeline.html" class="">05 · Невидимые контролёры</a>
+<a href="./06-error-recovery.html" class="">06 · Когда что-то ломается</a>
+<a href="./07-background-agents.html" class="">07 · Работа в несколько рук</a>
+<a href="./08-dynamic-prompts.html" class="">08 · Инструкции на лету</a>
+<a href="./09-crafted-tools.html" class="">09 · Крутые инструменты</a>
+<a href="./10-cc-compatibility.html" class="">10 · Дружба со старыми привычками</a>
+<a href="./11-ralph-loop.html" class="">11 · Цикл до победного</a>
+    </details>
+  </nav>
+  <main id="content" class="content">
+<h1>Глава 3: Кто кому что поручает (Delegation)</h1>
+<blockquote>&gt; <em>&quot;Хороший генерал не бросается в атаку сам. Хороший организатор не пишет код сам.&quot;</em></blockquote>
+<h2>Что было раньше</h2>
+<p>В <a href="./02-sisyphus-planning.html">прошлой главе</a> Sisyphus осмотрел проект и решил: сам такую большую переделку не потянуть, нужно кому-то поручить. Теперь он пользуется инструментом <strong>delegate_task</strong>.</p>
+<h2>Зачем это нужно</h2>
+<p>Задачу &quot;переделать модуль&quot; нужно разбить на кусочки и раздать разным исполнителям. Но исполнители бывают разные: есть настроенные &quot;режимы работы&quot; под конкретную задачу (<strong>Category</strong>), есть Agents со своей ролью, а есть готовые &quot;шпаргалки&quot; (<strong>Skills</strong>) с профильными знаниями. Как выбрать нужное?</p>
+<h2>Как это происходит</h2>
+<h3>Шаг 1. Настоящий исполнитель — Sisyphus-Junior</h3>
+<p>Когда Sisyphus вызывает <code>delegate_task</code>, на самом деле работать садится не он сам, а <strong>Sisyphus-Junior</strong> — &quot;focused executor&quot;. У него та же выучка, что и у Sisyphus, но с важным отличием: ему <strong>заблокированы</strong> инструменты <code>task</code> и <code>delegate_task</code>. Он может использовать <code>call_omo_agent</code>, чтобы позвать Explore или Librarian для исследования, но не может создать ещё одного &quot;младшего себя&quot;. Это предотвращает бесконечную цепочку делегирования.</p>
+<h3>Шаг 2. Category — готовые &quot;режимы работы&quot;</h3>
+<p>Прежде чем отправить Sisyphus-Junior работать, можно выбрать заранее настроенную <strong>Category</strong>:</p>
+<div class="table-wrap"><table><thead><tr>
+<th>Category</th>
+<th>Насколько &quot;творчески&quot; думает (температура)</th>
+<th>Для чего</th>
+</tr></thead><tbody>
+<tr>
+<td><code>quick</code></td>
+<td>Низкая</td>
+<td>Быстрые, чётко понятные задачи</td>
+</tr>
+<tr>
+<td><code>visual-engineering</code></td>
+<td>Средняя</td>
+<td>Работа с интерфейсом (UI)</td>
+</tr>
+<tr>
+<td><code>ultrabrain</code></td>
+<td>Низкая, но глубокое размышление</td>
+<td>Сложные задачи, требующие тщательного анализа</td>
+</tr>
+</tbody></table></div>
+<h3>Шаг 3. Skill — шпаргалки со знаниями</h3>
+<p>Есть готовые Markdown-файлы-инструкции по конкретным темам (например, &quot;как правильно писать компоненты в React&quot;). Когда Sisyphus указывает <code>load_skills=[&quot;react-patterns&quot;]</code>, содержимое Skill подставляется прямо в начало prompt для Sisyphus-Junior — чтобы он сразу знал правила этой конкретной области.</p>
+<h3>Шаг 4. Session ID — память между попытками</h3>
+<p>Каждый вызов <code>delegate_task()</code> возвращает свой <strong>session_id</strong>. Если Sisyphus-Junior не справился с первого раза, Sisyphus может продолжить <strong>тот же session_id</strong>, а не начинать заново — тогда агент помнит всё, что уже пробовал, и не должен заново читать все файлы. Это экономит по некоторым оценкам больше 70% токенов.</p>
+<h3>Шаг 5. Поручение из шести пунктов — 6-Section Prompt</h3>
+<p>Каждое поручение, которое Sisyphus отдаёт через <code>delegate_task</code>, должно содержать шесть обязательных частей:</p>
+<ul>
+<li><strong>TASK</strong> — что именно нужно сделать, максимально конкретно</li>
+<li><strong>EXPECTED OUTCOME</strong> — как понять, что всё готово</li>
+<li><strong>REQUIRED TOOLS</strong> — чем можно пользоваться (белый список)</li>
+<li><strong>MUST DO</strong> — подробно, без &quot;само собой разумеется&quot;</li>
+<li><strong>MUST NOT DO</strong> — что делать запрещено, чтобы не вышли за рамки задачи</li>
+<li><strong>CONTEXT</strong> — пути к файлам, уже существующие правила, ограничения</li>
+</ul>
+<p>Это не бюрократия ради бюрократии — это <strong>забор</strong>, который не даёт Sisyphus-Junior &quot;уйти не туда&quot;.</p>
+<h2>Схема передачи задания</h2>
+<div class="mermaid-wrap"><pre class="mermaid-source"><code>flowchart TD
+    A[&quot;Sisyphus решает:\n&#x27;нужно delegate_task&#x27;&quot;] --&gt; B[&quot;Выбирает Category\n(quick / visual-engineering / ultrabrain)&quot;]
+    B --&gt; C{&quot;Нужен ли\nload_skills?&quot;}
+    C --&gt;|да| D[&quot;Подключает нужный Skill&quot;]
+    C --&gt;|нет| E
+    D --&gt; E[&quot;Составляет 6-Section Prompt&quot;]
+    E --&gt; F[&quot;Создаёт Sisyphus-Junior&quot;]
+    F --&gt; G[&quot;Sisyphus-Junior делает работу&quot;]
+    G --&gt; H{&quot;Получилось?&quot;}
+    H --&gt;|нет| I[&quot;Sisyphus продолжает\nтот же session_id&quot;]
+    I --&gt; G
+    H --&gt;|да| J[&quot;Результат готов&quot;]</code></pre><div class="mermaid">flowchart TD
+    A[&quot;Sisyphus решает:\n&#x27;нужно delegate_task&#x27;&quot;] --&gt; B[&quot;Выбирает Category\n(quick / visual-engineering / ultrabrain)&quot;]
+    B --&gt; C{&quot;Нужен ли\nload_skills?&quot;}
+    C --&gt;|да| D[&quot;Подключает нужный Skill&quot;]
+    C --&gt;|нет| E
+    D --&gt; E[&quot;Составляет 6-Section Prompt&quot;]
+    E --&gt; F[&quot;Создаёт Sisyphus-Junior&quot;]
+    F --&gt; G[&quot;Sisyphus-Junior делает работу&quot;]
+    G --&gt; H{&quot;Получилось?&quot;}
+    H --&gt;|нет| I[&quot;Sisyphus продолжает\nтот же session_id&quot;]
+    I --&gt; G
+    H --&gt;|да| J[&quot;Результат готов&quot;]</div></div>
+<h2>Главная мысль</h2>
+<p><strong>delegate_task — не значит &#x27;спихнуть работу&#x27;. Это точная наводка.</strong> Правило шести частей (6-Section Prompt) — не формальность, а защита от того, чтобы Sisyphus-Junior &quot;не понял правильно&quot; и не сделал лишнего.</p>
+<p>Category выбирает нужную &quot;модель мышления&quot;, Skill добавляет профильные знания, а session_id не даёт забыть, что уже пробовали. Вместе это делает каждое поручение точным, осведомлённым и с памятью.</p>
+<h2>Что дальше</h2>
+<p>Sisyphus раздал поручения, но не всё подходит для Sisyphus-Junior — иногда нужен только анализ без изменений (Oracle), поиск по коду (Explore) или поиск во внешней документации (Librarian).</p>
+<p>→ <a href="./04-specialist-agents.html">Глава 4: Команда специалистов</a></p>
+    <nav class="pager"><a href="./02-sisyphus-planning.html">← 02 · Начальник получает задание</a><a href="./04-specialist-agents.html">04 · Команда специалистов →</a></nav>
+  </main>
+</div>
+<footer class="foot">Упрощённый пересказ learn-OMO на русском · <a href="https://github.com/yangheng/learn-OMO">оригинал</a></footer>
+<script src="./app.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
+</body>
+</html>

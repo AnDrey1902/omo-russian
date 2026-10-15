@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Глава 4: Команда специалистов (Specialist Agents) · Oh-My-Opencode — простым языком</title>
+<meta name="description" content="Перевод руководства Oh My OpenCode простым языком.">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<a class="skip" href="#content">Перейти к содержанию</a>
+<header class="topbar">
+  <a class="brand" href="./index.html">Oh-My-Opencode — простым языком</a>
+  <div class="search">
+    <input id="search" type="search" placeholder="Поиск по руководству…  ( / )" autocomplete="off" aria-label="Поиск по руководству">
+    <div id="results" class="results" hidden></div>
+  </div>
+  <button id="theme" class="theme-btn" type="button" aria-label="Переключить тему">Тема</button>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Содержание">
+    <details class="side-toggle" open>
+      <summary>Содержание</summary>
+      <a href="./index.html" class="">Главная</a>
+<a href="./00-architecture.html" class="">Обзор архитектуры</a>
+<a href="./01-plugin-bootstrap.html" class="">01 · Как просыпается OMO</a>
+<a href="./02-sisyphus-planning.html" class="">02 · Начальник получает задание</a>
+<a href="./03-delegation.html" class="">03 · Кто кому что поручает</a>
+<a href="./04-specialist-agents.html" class="active">04 · Команда специалистов</a>
+<a href="./05-hook-pipeline.html" class="">05 · Невидимые контролёры</a>
+<a href="./06-error-recovery.html" class="">06 · Когда что-то ломается</a>
+<a href="./07-background-agents.html" class="">07 · Работа в несколько рук</a>
+<a href="./08-dynamic-prompts.html" class="">08 · Инструкции на лету</a>
+<a href="./09-crafted-tools.html" class="">09 · Крутые инструменты</a>
+<a href="./10-cc-compatibility.html" class="">10 · Дружба со старыми привычками</a>
+<a href="./11-ralph-loop.html" class="">11 · Цикл до победного</a>
+    </details>
+  </nav>
+  <main id="content" class="content">
+<h1>Глава 4: Команда специалистов (Specialist Agents)</h1>
+<blockquote>&gt; <em>&quot;Не каждую проблему нужно решать одним и тем же молотком. Oracle думает, Explore ищет, Librarian читает — у каждого своя работа.&quot;</em></blockquote>
+<h2>Что было раньше</h2>
+<p>В <a href="./03-delegation.html">прошлой главе</a> Sisyphus научился передавать поручения через <code>delegate_task</code> обычному исполнителю (Sisyphus-Junior). Но не всякую работу можно доверить исполнителю — иногда нужна не переделка кода, а <strong>поиск, анализ или проверка</strong>.</p>
+<h2>Зачем это нужно</h2>
+<p>Во время большой переделки Sisyphus нужно: понять, как связаны между собой части модуля, найти лучшие практики для внешней библиотеки, и после изменений устроить архитектурную проверку. Для этих трёх задач нужны три разных Agents.</p>
+<h2>Знакомство с командой</h2>
+<h3>Explore (Следопыт) — поисковик по коду проекта</h3>
+<p>Explore работает в режиме <strong>subagent</strong> и <strong>ничего не меняет</strong> — только ищет. Его задача — &quot;contextual grep for codebases&quot;: отвечать на вопросы вроде &quot;Where is X?&quot;, &quot;Which file has Y?&quot;. Он умнее обычного <code>grep</code>: использует LSP-инструменты для семантики, <code>ast_grep_search</code> для структурных паттернов, обычный <code>grep</code> для текста и <code>glob</code> для файлов по имени.</p>
+<p><strong>Ключевое ограничение</strong>: Explore заблокированы инструменты <code>write</code>, <code>edit</code>, <code>task</code>, <code>delegate_task</code>, <code>call_omo_agent</code>. Чистый поиск, без побочных эффектов.</p>
+<h3>Librarian (Библиотекарь) — окно во внешний мир</h3>
+<p>Librarian занимается <strong>внешней информацией</strong>: официальной документацией, репозиториями на GitHub, форумами (multi-repository analysis). У него есть чёткий порядок действий (Phase 0.5 — Documentation Discovery): сначала веб-поиск официального сайта документации, затем проверка версии, затем <code>webfetch</code> карты сайта (sitemap), а потом уже целенаправленное исследование. Каждый вывод Librarian обязательно должен подкрепляться <strong>GitHub permalink</strong> как доказательством.</p>
+<h3>Oracle (Мудрец) — дорогой, но умный советчик</h3>
+<p>Oracle — &quot;read-only consultation agent, high-IQ reasoning specialist&quot;. Самый &quot;дорогой&quot; Agent (extended thinking + топовая модель). Ему через <code>createAgentToolRestrictions</code> <strong>заблокированы</strong> <code>write</code>, <code>edit</code>, <code>task</code>, <code>delegate_task</code> — только анализировать и советовать. Его зовут: после 2+ неудачных попыток исправить ошибку, для сложных архитектурных решений, для проблем безопасности/производительности.</p>
+<h3>Metis (Советник) — задаёт вопросы до планирования</h3>
+<p>Metis (Pre-Planning Consultant) — назван в честь греческой богини мудрости. Вступает в игру ещё <strong>до того</strong>, как появится план. Сначала определяет тип задачи (переделка? создание с нуля? исследование?), затем задаёт уточняющие вопросы и ищет так называемые <strong>AI-Slop Patterns</strong> — типичные ловушки ИИ (раздутый scope, преждевременная абстракция, избыточная валидация).</p>
+<h3>Momus (Критик) — проверяющий планов</h3>
+<p>Momus назван в честь греческого бога насмешки и придирок. Проверяет рабочие планы предельно строго — &quot;Historical Data: Plans from this author average 7 rejections before receiving an OKAY&quot;. Он &quot;проигрывает в уме&quot; (<code>simulate actually doing the work</code>) каждый шаг плана, проверяет каждую ссылку на файл и следит, чтобы плана хватило для реальной работы без домысливания.</p>
+<h3>Atlas (Дирижёр) — командует большими проектами</h3>
+<p>Atlas — &quot;Master Orchestrator Agent&quot;. Это &quot;режим больших проектов&quot; (primary agent) для Sisyphus. Когда есть длинный todo-список, Atlas берёт управление на себя и через <code>delegate_task()</code> распределяет задачи, проверяя каждый результат, пока весь список не будет выполнен.</p>
+<h2>Кто что может — таблица прав (Agent Permission Matrix)</h2>
+<div class="table-wrap"><table><thead><tr>
+<th>Agent</th>
+<th>write/edit</th>
+<th>task</th>
+<th>delegate_task</th>
+<th>call_omo_agent</th>
+<th>Mode</th>
+</tr></thead><tbody>
+<tr>
+<td>Sisyphus</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>❌</td>
+<td>primary</td>
+</tr>
+<tr>
+<td>Sisyphus-Junior</td>
+<td>✅</td>
+<td>❌</td>
+<td>❌</td>
+<td>✅</td>
+<td>subagent</td>
+</tr>
+<tr>
+<td>Oracle</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>—</td>
+<td>subagent</td>
+</tr>
+<tr>
+<td>Explore</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>subagent</td>
+</tr>
+<tr>
+<td>Librarian</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>subagent</td>
+</tr>
+<tr>
+<td>Metis</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>✅</td>
+<td>subagent</td>
+</tr>
+<tr>
+<td>Momus</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td>—</td>
+<td>subagent</td>
+</tr>
+<tr>
+<td>Atlas</td>
+<td>❌</td>
+<td>❌</td>
+<td>✅</td>
+<td>❌</td>
+<td>primary</td>
+</tr>
+</tbody></table></div>
+<h2>Схема команды</h2>
+<div class="mermaid-wrap"><pre class="mermaid-source"><code>flowchart TD
+    S[&quot;Sisyphus&quot;] --&gt;|поиск в коде| EX[&quot;Explore&quot;]
+    S --&gt;|поиск во внешних\nисточниках| LIB[&quot;Librarian&quot;]
+    S --&gt;|сложный вопрос| OR[&quot;Oracle&quot;]
+    S --&gt;|перед планированием| MET[&quot;Metis&quot;]
+    MET --&gt; PROM[&quot;Prometheus\nсоставляет план&quot;]
+    PROM --&gt; MOM[&quot;Momus&quot;]
+    MOM --&gt;|отклонено| PROM
+    S --&gt;|огромный проект| ATL[&quot;Atlas&quot;]
+    ATL --&gt; W1[&quot;Кусок работы 1&quot;]
+    ATL --&gt; W2[&quot;Кусок работы 2&quot;]</code></pre><div class="mermaid">flowchart TD
+    S[&quot;Sisyphus&quot;] --&gt;|поиск в коде| EX[&quot;Explore&quot;]
+    S --&gt;|поиск во внешних\nисточниках| LIB[&quot;Librarian&quot;]
+    S --&gt;|сложный вопрос| OR[&quot;Oracle&quot;]
+    S --&gt;|перед планированием| MET[&quot;Metis&quot;]
+    MET --&gt; PROM[&quot;Prometheus\nсоставляет план&quot;]
+    PROM --&gt; MOM[&quot;Momus&quot;]
+    MOM --&gt;|отклонено| PROM
+    S --&gt;|огромный проект| ATL[&quot;Atlas&quot;]
+    ATL --&gt; W1[&quot;Кусок работы 1&quot;]
+    ATL --&gt; W2[&quot;Кусок работы 2&quot;]</div></div>
+<h2>Главная мысль</h2>
+<p><strong>Права Agent — это и есть его характер.</strong> Oracle нельзя писать код, поэтому его совет всегда остаётся <em>просто советом</em> — он никогда случайно не изменит файл. Explore нельзя делегировать — он не начнёт &quot;самовольничать&quot;. Sisyphus-Junior нельзя снова использовать <code>delegate_task</code> — это не даёт цепочке передачи заданий уйти в бесконечность.</p>
+<p>Это не вопрос доверия — это <strong>структурная безопасность</strong>. Ограничения каждого Agent формируют его поведение.</p>
+<h2>Что дальше</h2>
+<p>Пока специалисты работают, каждый их шаг незаметно проходит через сеть Hooks — они могут &quot;на лету&quot; усилить размышление или подсказать правила проекта.</p>
+<p>→ <a href="./05-hook-pipeline.html">Глава 5: Невидимые контролёры</a></p>
+    <nav class="pager"><a href="./03-delegation.html">← 03 · Кто кому что поручает</a><a href="./05-hook-pipeline.html">05 · Невидимые контролёры →</a></nav>
+  </main>
+</div>
+<footer class="foot">Упрощённый пересказ learn-OMO на русском · <a href="https://github.com/yangheng/learn-OMO">оригинал</a></footer>
+<script src="./app.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
+</body>
+</html>

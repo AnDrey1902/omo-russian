@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>learn-OMO: разбираемся, как устроен Oh My OpenCode — простыми словами · Oh-My-Opencode — простым языком</title>
+<meta name="description" content="Перевод руководства Oh My OpenCode простым языком.">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<a class="skip" href="#content">Перейти к содержанию</a>
+<header class="topbar">
+  <a class="brand" href="./index.html">Oh-My-Opencode — простым языком</a>
+  <div class="search">
+    <input id="search" type="search" placeholder="Поиск по руководству…  ( / )" autocomplete="off" aria-label="Поиск по руководству">
+    <div id="results" class="results" hidden></div>
+  </div>
+  <button id="theme" class="theme-btn" type="button" aria-label="Переключить тему">Тема</button>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Содержание">
+    <details class="side-toggle" open>
+      <summary>Содержание</summary>
+      <a href="./index.html" class="active">Главная</a>
+<a href="./00-architecture.html" class="">Обзор архитектуры</a>
+<a href="./01-plugin-bootstrap.html" class="">01 · Как просыпается OMO</a>
+<a href="./02-sisyphus-planning.html" class="">02 · Начальник получает задание</a>
+<a href="./03-delegation.html" class="">03 · Кто кому что поручает</a>
+<a href="./04-specialist-agents.html" class="">04 · Команда специалистов</a>
+<a href="./05-hook-pipeline.html" class="">05 · Невидимые контролёры</a>
+<a href="./06-error-recovery.html" class="">06 · Когда что-то ломается</a>
+<a href="./07-background-agents.html" class="">07 · Работа в несколько рук</a>
+<a href="./08-dynamic-prompts.html" class="">08 · Инструкции на лету</a>
+<a href="./09-crafted-tools.html" class="">09 · Крутые инструменты</a>
+<a href="./10-cc-compatibility.html" class="">10 · Дружба со старыми привычками</a>
+<a href="./11-ralph-loop.html" class="">11 · Цикл до победного</a>
+    </details>
+  </nav>
+  <main id="content" class="content">
+<h1>learn-OMO: разбираемся, как устроен Oh My OpenCode — простыми словами</h1>
+<blockquote>&gt; Это упрощённый пересказ документации проекта <a href="https://github.com/yangheng/learn-OMO">learn-OMO</a>. Оригинал написан для опытных разработчиков. Здесь та же история, но объяснённая так, чтобы её понял даже школьник — с аналогиями и схемами вместо кусков кода.</blockquote>
+<blockquote>&gt;</blockquote>
+<blockquote>&gt; Рядом с каждой &quot;человеческой&quot; аналогией везде указан настоящий термин OMO (на английском) — так, начав пользоваться инструментом по-настоящему, ты сразу узнаешь знакомые слова в интерфейсе и документации.</blockquote>
+<h2>О чём вообще речь</h2>
+<p>Представь, что у тебя есть очень способный, но немного бестолковый помощник — обычный ИИ-программист (это называется <strong>OpenCode</strong>). Он умеет писать код, но не умеет сам себя организовывать: не помнит, кого позвать на помощь, что делать при ошибке, как разбить большую задачу на маленькие.</p>
+<p><strong>OMO (Oh My OpenCode)</strong> — это как если бы к этому помощнику приставили целую <strong>команду роботов</strong>: начальника, исполнителей, разведчиков, библиотекаря, мудреца-советчика и строгого критика. Каждый знает свою работу. Вместе они умеют доводить сложные задачи до конца, даже если что-то пошло не так.</p>
+<p>Вся документация — это одна большая история: ты говоришь &quot;почини мне вот этот кусок кода&quot;, и мы шаг за шагом смотрим, что происходит внутри, от первой миллисекунды до финального &quot;Готово!&quot;.</p>
+<h2>Словарь: &quot;по-нашему&quot; ↔ &quot;по-настоящему&quot;</h2>
+<p>Чтобы было легко потом читать настоящую документацию или настройки OMO, вот таблица соответствий терминов из нашего пересказа официальным названиям:</p>
+<div class="table-wrap"><table><thead><tr>
+<th>Наша аналогия</th>
+<th>Настоящий термин OMO</th>
+<th>Что это такое</th>
+</tr></thead><tbody>
+<tr>
+<td>Плагин / надстройка</td>
+<td><strong>Plugin</strong></td>
+<td>Сам OMO — модуль, который подключается к OpenCode</td>
+</tr>
+<tr>
+<td>Контролёр</td>
+<td><strong>Hook</strong></td>
+<td>Скрытый обработчик, который перехватывает события и вызовы инструментов</td>
+</tr>
+<tr>
+<td>Инструмент</td>
+<td><strong>Tool</strong></td>
+<td>Конкретное действие, которым может воспользоваться робот (поиск, редактирование и т.д.)</td>
+</tr>
+<tr>
+<td>Специалист / робот</td>
+<td><strong>Agent</strong></td>
+<td>Отдельная &quot;роль&quot; с собственной инструкцией и правами</td>
+</tr>
+<tr>
+<td>Сизиф</td>
+<td><strong>Sisyphus</strong></td>
+<td>Главный агент-оркестратор (primary agent)</td>
+</tr>
+<tr>
+<td>Исполнитель (&quot;младший Сизиф&quot;)</td>
+<td><strong>Sisyphus-Junior</strong></td>
+<td>Агент, который реально выполняет переданную работу</td>
+</tr>
+<tr>
+<td>Следопыт</td>
+<td><strong>Explore</strong></td>
+<td>Агент для поиска по коду внутри проекта</td>
+</tr>
+<tr>
+<td>Библиотекарь</td>
+<td><strong>Librarian</strong></td>
+<td>Агент для поиска во внешней документации и коде</td>
+</tr>
+<tr>
+<td>Мудрец</td>
+<td><strong>Oracle</strong></td>
+<td>Агент-консультант только для чтения и анализа</td>
+</tr>
+<tr>
+<td>Советник</td>
+<td><strong>Metis</strong></td>
+<td>Агент, который проверяет план до его составления</td>
+</tr>
+<tr>
+<td>Стратег</td>
+<td><strong>Prometheus</strong></td>
+<td>Агент-планировщик, которому запрещено писать код</td>
+</tr>
+<tr>
+<td>Критик</td>
+<td><strong>Momus</strong></td>
+<td>Агент, который проверяет и отклоняет планы</td>
+</tr>
+<tr>
+<td>Дирижёр</td>
+<td><strong>Atlas</strong></td>
+<td>Агент-оркестратор для больших задач</td>
+</tr>
+<tr>
+<td>Передать поручение</td>
+<td><strong>delegate_task</strong></td>
+<td>Инструмент передачи задачи другому агенту</td>
+</tr>
+<tr>
+<td>Позвать специалиста напрямую</td>
+<td><strong>call_omo_agent</strong></td>
+<td>Инструмент прямого вызова конкретного агента</td>
+</tr>
+<tr>
+<td>Шпаргалка со знаниями</td>
+<td><strong>Skill</strong></td>
+<td>Файл с профильными знаниями, который подключают к задаче</td>
+</tr>
+<tr>
+<td>Режим работы</td>
+<td><strong>Category</strong></td>
+<td>Заранее настроенное окружение (модель, температура) для задачи</td>
+</tr>
+<tr>
+<td>Цикл-Ральф</td>
+<td><strong>Ralph Loop</strong></td>
+<td>Механизм автоповтора, пока задача не завершена</td>
+</tr>
+<tr>
+<td>Метка завершения</td>
+<td><strong>Completion Promise</strong> (<code>&lt;promise&gt;DONE&lt;/promise&gt;</code>)</td>
+<td>Сигнал агента о том, что задача реально закончена</td>
+</tr>
+<tr>
+<td>Диспетчер фоновых задач</td>
+<td><strong>BackgroundManager</strong></td>
+<td>Модуль, который запускает и контролирует параллельных агентов</td>
+</tr>
+</tbody></table></div>
+<h2>С чего начать</h2>
+<ul>
+<li>🏗️ <strong>Если тебе интересна только общая картина</strong> → <a href="./00-architecture.html">Обзор архитектуры</a></li>
+<li>📖 <strong>Если хочешь пройти всю историю с самого начала</strong> → <a href="./01-plugin-bootstrap.html">Глава 1: Как просыпается OMO</a></li>
+</ul>
+<h2>Все главы</h2>
+<div class="table-wrap"><table><thead><tr>
+<th>№</th>
+<th>Глава</th>
+<th>О чём коротко</th>
+</tr></thead><tbody>
+<tr>
+<td>00</td>
+<td><a href="./00-architecture.html">Обзор архитектуры</a></td>
+<td>Общая картина: кто здесь главный и как всё связано</td>
+</tr>
+<tr>
+<td>01</td>
+<td><a href="./01-plugin-bootstrap.html">Как просыпается OMO</a> (Plugin Bootstrap)</td>
+<td>Как команда роботов собирается перед началом работы</td>
+</tr>
+<tr>
+<td>02</td>
+<td><a href="./02-sisyphus-planning.html">Начальник получает задание</a> (Sisyphus Planning)</td>
+<td>Как Сизиф (главный робот) разбирается, что от него хотят</td>
+</tr>
+<tr>
+<td>03</td>
+<td><a href="./03-delegation.html">Кто кому что поручает</a> (Delegation)</td>
+<td>Как задания передаются от начальника к исполнителям</td>
+</tr>
+<tr>
+<td>04</td>
+<td><a href="./04-specialist-agents.html">Команда специалистов</a> (Specialist Agents)</td>
+<td>Кто есть кто: разведчик, библиотекарь, мудрец, критик</td>
+</tr>
+<tr>
+<td>05</td>
+<td><a href="./05-hook-pipeline.html">Невидимые контролёры</a> (Hook Pipeline)</td>
+<td>Кто незаметно помогает роботам работать лучше</td>
+</tr>
+<tr>
+<td>06</td>
+<td><a href="./06-error-recovery.html">Когда что-то ломается</a> (Error Recovery)</td>
+<td>Как команда сама чинит свои же ошибки</td>
+</tr>
+<tr>
+<td>07</td>
+<td><a href="./07-background-agents.html">Работа в несколько рук</a> (Background Agents)</td>
+<td>Как несколько роботов трудятся одновременно</td>
+</tr>
+<tr>
+<td>08</td>
+<td><a href="./08-dynamic-prompts.html">Инструкции на лету</a> (Dynamic Prompts)</td>
+<td>Откуда роботы каждый раз знают, что им можно делать</td>
+</tr>
+<tr>
+<td>09</td>
+<td><a href="./09-crafted-tools.html">Крутые инструменты</a> (Crafted Tools)</td>
+<td>Чем роботы ищут и чинят код на самом деле</td>
+</tr>
+<tr>
+<td>10</td>
+<td><a href="./10-cc-compatibility.html">Дружба со старыми привычками</a> (CC Compatibility)</td>
+<td>Как OMO подружился с Claude Code</td>
+</tr>
+<tr>
+<td>11</td>
+<td><a href="./11-ralph-loop.html">Цикл до победного</a> (Ralph Loop)</td>
+<td>Главная суперспособность — не останавливаться, пока не готово</td>
+</tr>
+</tbody></table></div>
+<h2>Как читать</h2>
+<p>Читай по порядку — главы продолжают друг друга, как серии одного сериала. В конце каждой главы есть схема — она показывает, &quot;кто кому что передаёт&quot; в этой части истории. В скобках рядом с русскими названиями всегда указан настоящий английский термин.</p>
+<hr>
+<p><em>Упрощённый пересказ на русском. Оригинал (на китайском и английском): <a href="https://github.com/yangheng/learn-OMO">github.com/yangheng/learn-OMO</a></em></p>
+    <nav class="pager"><span></span><a href="./00-architecture.html">Обзор архитектуры →</a></nav>
+  </main>
+</div>
+<footer class="foot">Упрощённый пересказ learn-OMO на русском · <a href="https://github.com/yangheng/learn-OMO">оригинал</a></footer>
+<script src="./app.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
+</body>
+</html>

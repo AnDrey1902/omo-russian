@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Глава 2: Начальник получает задание (Sisyphus Planning) · Oh-My-Opencode — простым языком</title>
+<meta name="description" content="Перевод руководства Oh My OpenCode простым языком.">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<a class="skip" href="#content">Перейти к содержанию</a>
+<header class="topbar">
+  <a class="brand" href="./index.html">Oh-My-Opencode — простым языком</a>
+  <div class="search">
+    <input id="search" type="search" placeholder="Поиск по руководству…  ( / )" autocomplete="off" aria-label="Поиск по руководству">
+    <div id="results" class="results" hidden></div>
+  </div>
+  <button id="theme" class="theme-btn" type="button" aria-label="Переключить тему">Тема</button>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Содержание">
+    <details class="side-toggle" open>
+      <summary>Содержание</summary>
+      <a href="./index.html" class="">Главная</a>
+<a href="./00-architecture.html" class="">Обзор архитектуры</a>
+<a href="./01-plugin-bootstrap.html" class="">01 · Как просыпается OMO</a>
+<a href="./02-sisyphus-planning.html" class="active">02 · Начальник получает задание</a>
+<a href="./03-delegation.html" class="">03 · Кто кому что поручает</a>
+<a href="./04-specialist-agents.html" class="">04 · Команда специалистов</a>
+<a href="./05-hook-pipeline.html" class="">05 · Невидимые контролёры</a>
+<a href="./06-error-recovery.html" class="">06 · Когда что-то ломается</a>
+<a href="./07-background-agents.html" class="">07 · Работа в несколько рук</a>
+<a href="./08-dynamic-prompts.html" class="">08 · Инструкции на лету</a>
+<a href="./09-crafted-tools.html" class="">09 · Крутые инструменты</a>
+<a href="./10-cc-compatibility.html" class="">10 · Дружба со старыми привычками</a>
+<a href="./11-ralph-loop.html" class="">11 · Цикл до победного</a>
+    </details>
+  </nav>
+  <main id="content" class="content">
+<h1>Глава 2: Начальник получает задание (Sisyphus Planning)</h1>
+<blockquote>&gt; <em>&quot;Сизиф каждый день катит камень в гору. Ты каждый день пишешь код. Разница невелика — твой код должен получаться не хуже, чем у опытного инженера.&quot;</em></blockquote>
+<h2>Что было раньше</h2>
+<p>В <a href="./01-plugin-bootstrap.html">прошлой главе</a> вся команда OMO собралась и &quot;включилась&quot; (<strong>Plugin Bootstrap</strong>). Твоё сообщение &quot;помоги переделать этот кусок кода&quot; прошло через цепочку Hooks (<code>chat.message</code>) и дошло до <strong>Sisyphus</strong> — главного агента-оркестратора (<strong>primary agent</strong>).</p>
+<p>Почему его назвали именно так? В древнегреческом мифе Сизиф был обречён вечно катить камень на вершину горы. Идея простая: программирование — это тоже такая работа, которую делаешь снова и снова, и делать её нужно хорошо, как это делал бы опытный инженер, а не абы как.</p>
+<h2>Зачем нужна эта глава</h2>
+<p>Просьба &quot;переделай этот кусок кода&quot; — расплывчатая. Sisyphus не может просто взять и начать что-то менять. Сначала ему нужно <strong>понять, чего от него хотят, осмотреться в проекте и составить план</strong> — это называется Phase 0 → Phase 1.</p>
+<h2>Как это происходит</h2>
+<h3>Шаг 1. Кто такой Sisyphus</h3>
+<p>Sisyphus описывает себя так: он не &quot;просто рабочий&quot;, который делает всё сам, а скорее <strong>опытный инженер-организатор</strong>: разбирает, что скрывается за просьбой, подстраивается под то, насколько аккуратно написан код в проекте, и — самое главное — старается <strong>передавать работу нужным Agents</strong> (<code>delegating specialized work to the right subagents</code>), а не тянуть всё на себе.</p>
+<h3>Шаг 2. Intent Gate — что это вообще за просьба?</h3>
+<p>Первое, что делает Sisyphus с <em>любым</em> твоим сообщением — определяет его тип. Это называется <strong>Phase 0 — Intent Gate</strong>, и проходит для каждого сообщения без исключений:</p>
+<div class="table-wrap"><table><thead><tr>
+<th>Тип просьбы</th>
+<th>Признак</th>
+<th>Что делает Sisyphus</th>
+</tr></thead><tbody>
+<tr>
+<td>Trivial (простейшая)</td>
+<td>Один файл, всё понятно</td>
+<td>Делает сразу сам (Direct tools only)</td>
+</tr>
+<tr>
+<td>Explicit (точная)</td>
+<td>Указан конкретный файл/строка</td>
+<td>Выполняет напрямую</td>
+</tr>
+<tr>
+<td>Exploratory (исследовательская)</td>
+<td>&quot;Как это работает?&quot;</td>
+<td>Запускает Explore параллельно</td>
+</tr>
+<tr>
+<td>Open-ended (открытая)</td>
+<td>&quot;Улучши&quot;, &quot;Переделай&quot;, &quot;Добавь&quot;</td>
+<td>Сначала осматривает проект</td>
+</tr>
+<tr>
+<td>Ambiguous (неясная)</td>
+<td>Непонятно, что нужно</td>
+<td>Задаёт один уточняющий вопрос</td>
+</tr>
+</tbody></table></div>
+<p>&quot;Переделай этот кусок кода&quot; попадает в категорию <strong>Open-ended</strong>. Значит, дальше — осмотреться (<strong>Phase 1</strong>).</p>
+<h3>Шаг 3. Осмотр проекта — State Classification</h3>
+<p>Sisyphus не слепо копирует то, что уже написано в проекте — он сначала оценивает, а стоит ли этому следовать:</p>
+<div class="table-wrap"><table><thead><tr>
+<th>Состояние проекта</th>
+<th>Признаки</th>
+<th>Поведение</th>
+</tr></thead><tbody>
+<tr>
+<td>Disciplined (аккуратный)</td>
+<td>Одинаковый стиль, есть тесты</td>
+<td>Следовать существующим правилам</td>
+</tr>
+<tr>
+<td>Transitional (смешанный)</td>
+<td>Разные стили в разных местах</td>
+<td>Спросить, какому стилю следовать</td>
+</tr>
+<tr>
+<td>Legacy/Chaotic (запущенный)</td>
+<td>Никакой системы нет</td>
+<td>Предложить свои правила</td>
+</tr>
+<tr>
+<td>Greenfield (проект с нуля)</td>
+<td>Пустой/новый проект</td>
+<td>Использовать современные практики</td>
+</tr>
+</tbody></table></div>
+<h3>Шаг 4. Delegation Check — обязательная проверка</h3>
+<p>Прежде чем действовать самому, Sisyphus обязан пройти <strong>Delegation Check</strong>:</p>
+<ul>
+<li>Есть ли Agent, который идеально подходит для этого?</li>
+<li>Если нет — есть ли <code>delegate_task</code>-категория (<strong>Category</strong>)?</li>
+<li>Точно ли я могу справиться сам?</li>
+</ul>
+<p>Правило по умолчанию (<strong>Default Bias</strong>) простое: <strong>DELEGATE. Работай сам только если это действительно очень просто.</strong></p>
+<h3>Шаг 5. Todo-дисциплина — список дел как счётчик прогресса</h3>
+<p>Прежде чем начать что-то нетривиальное, Sisyphus обязан составить <strong>todo</strong>-список маленьких шагов через инструмент <code>todowrite</code>. Пока делает один шаг (<code>in_progress</code>) — остальные ждут (только один одновременно). Закончил — сразу отмечает <code>completed</code>. Это позволяет тебе видеть в реальном времени, что именно сейчас происходит.</p>
+<h3>Шаг 6. Разные модели — разный способ думать</h3>
+<p>В зависимости от того, какая ИИ-модель управляет Sisyphus в данный момент (<strong>model</strong>), он думает по-разному: модели вроде Claude используют режим &quot;продумай подробно, прежде чем ответить&quot; (<strong>extended thinking</strong>, <code>budgetTokens: 32000</code>), модели вроде GPT используют свой способ рассуждения (<strong>reasoningEffort: &quot;medium&quot;</strong>). Агент один и тот же — способ мышления подстраивается под &quot;мозг&quot;.</p>
+<h2>Схема пути принятия решения</h2>
+<div class="mermaid-wrap"><pre class="mermaid-source"><code>flowchart TD
+    A[&quot;Приходит сообщение:\n&#x27;переделай этот код&#x27;&quot;] --&gt; B{&quot;Intent Gate:\nкакой это тип просьбы?&quot;}
+    B --&gt;|Trivial| C[&quot;Делает сам (Tools)&quot;]
+    B --&gt;|Open-ended| D[&quot;Осматривает проект\n(State Classification)&quot;]
+    D --&gt; E{&quot;Насколько аккуратен\nкод в проекте?&quot;}
+    E --&gt; F[&quot;Решает, каким\nправилам следовать&quot;]
+    F --&gt; G{&quot;Delegation Check:\nможет справиться сам?&quot;}
+    G --&gt;|нет, лучше делегировать| H[&quot;Составляет todo-список&quot;]
+    G --&gt;|да, очень просто| C
+    H --&gt; I[&quot;Открывает delegate_task&quot;]</code></pre><div class="mermaid">flowchart TD
+    A[&quot;Приходит сообщение:\n&#x27;переделай этот код&#x27;&quot;] --&gt; B{&quot;Intent Gate:\nкакой это тип просьбы?&quot;}
+    B --&gt;|Trivial| C[&quot;Делает сам (Tools)&quot;]
+    B --&gt;|Open-ended| D[&quot;Осматривает проект\n(State Classification)&quot;]
+    D --&gt; E{&quot;Насколько аккуратен\nкод в проекте?&quot;}
+    E --&gt; F[&quot;Решает, каким\nправилам следовать&quot;]
+    F --&gt; G{&quot;Delegation Check:\nможет справиться сам?&quot;}
+    G --&gt;|нет, лучше делегировать| H[&quot;Составляет todo-список&quot;]
+    G --&gt;|да, очень просто| C
+    H --&gt; I[&quot;Открывает delegate_task&quot;]</div></div>
+<h2>Главная мысль</h2>
+<p><strong>Первая мысль Sisyphus — не &#x27;как это сделать&#x27;, а &#x27;кто это должен делать&#x27;.</strong> Получив задачу, он проходит по строгой цепочке: Intent Gate → State Classification → Delegation Check → todo-список → и только потом действие. Это не просто совет — это жёсткое правило, записанное в prompt словами вроде <code>MANDATORY</code>, <code>NON-NEGOTIABLE</code>.</p>
+<p>В этом суть философии OMO: <strong>оркестрация важнее исполнения</strong>. Sisyphus мыслит как project manager и берётся за дело своими руками только тогда, когда оно &quot;super simple&quot;.</p>
+<h2>Что дальше</h2>
+<p>Sisyphus осмотрел проект и решил: &quot;Эта переделка слишком большая, я не должен делать её один&quot;. Он открывает систему <code>delegate_task</code>.</p>
+<p>→ <a href="./03-delegation.html">Глава 3: Кто кому что поручает</a></p>
+    <nav class="pager"><a href="./01-plugin-bootstrap.html">← 01 · Как просыпается OMO</a><a href="./03-delegation.html">03 · Кто кому что поручает →</a></nav>
+  </main>
+</div>
+<footer class="foot">Упрощённый пересказ learn-OMO на русском · <a href="https://github.com/yangheng/learn-OMO">оригинал</a></footer>
+<script src="./app.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Глава 6: Когда что-то ломается (Error Recovery) · Oh-My-Opencode — простым языком</title>
+<meta name="description" content="Перевод руководства Oh My OpenCode простым языком.">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<a class="skip" href="#content">Перейти к содержанию</a>
+<header class="topbar">
+  <a class="brand" href="./index.html">Oh-My-Opencode — простым языком</a>
+  <div class="search">
+    <input id="search" type="search" placeholder="Поиск по руководству…  ( / )" autocomplete="off" aria-label="Поиск по руководству">
+    <div id="results" class="results" hidden></div>
+  </div>
+  <button id="theme" class="theme-btn" type="button" aria-label="Переключить тему">Тема</button>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Содержание">
+    <details class="side-toggle" open>
+      <summary>Содержание</summary>
+      <a href="./index.html" class="">Главная</a>
+<a href="./00-architecture.html" class="">Обзор архитектуры</a>
+<a href="./01-plugin-bootstrap.html" class="">01 · Как просыпается OMO</a>
+<a href="./02-sisyphus-planning.html" class="">02 · Начальник получает задание</a>
+<a href="./03-delegation.html" class="">03 · Кто кому что поручает</a>
+<a href="./04-specialist-agents.html" class="">04 · Команда специалистов</a>
+<a href="./05-hook-pipeline.html" class="">05 · Невидимые контролёры</a>
+<a href="./06-error-recovery.html" class="active">06 · Когда что-то ломается</a>
+<a href="./07-background-agents.html" class="">07 · Работа в несколько рук</a>
+<a href="./08-dynamic-prompts.html" class="">08 · Инструкции на лету</a>
+<a href="./09-crafted-tools.html" class="">09 · Крутые инструменты</a>
+<a href="./10-cc-compatibility.html" class="">10 · Дружба со старыми привычками</a>
+<a href="./11-ralph-loop.html" class="">11 · Цикл до победного</a>
+    </details>
+  </nav>
+  <main id="content" class="content">
+<h1>Глава 6: Когда что-то ломается (Error Recovery)</h1>
+<blockquote>&gt; <em>&quot;ИИ не может не ошибаться. Но хороший ИИ умеет исправляться.&quot;</em></blockquote>
+<h2>Что было раньше</h2>
+<p>В <a href="./05-hook-pipeline.html">прошлой главе</a> мы увидели, как Hooks незаметно улучшают каждый шаг. Теперь представим: во время переделки кода один из агентов <strong>ошибся при редактировании</strong> — попытался заменить кусок текста, которого в файле уже нет.</p>
+<h2>Зачем это нужно</h2>
+<p>Агенты ошибаются часто: думают, что в файле написано одно, а там на самом деле другое; context window переполняется; иногда весь разговор вообще &quot;падает&quot; (session error). Если каждую такую мелочь придётся исправлять вручную, вся польза от команды роботов теряется.</p>
+<h2>Три (плюс один) уровня спасения</h2>
+<h3>Уровень 1. Edit Error Recovery — автоматическое исправление правки</h3>
+<p>Есть Hook <code>edit-error-recovery</code> с тремя классическими паттернами ошибок (<code>EDIT_ERROR_PATTERNS</code>): &quot;oldString and newString must be different&quot;, &quot;oldString not found&quot;, &quot;oldString found multiple times&quot;. Когда <code>tool.execute.after</code> видит такую ошибку, он не пытается просто повторить попытку — он <strong>добавляет к output строгую инструкцию</strong> (<code>EDIT_ERROR_REMINDER</code>):</p>
+<ul>
+<li>READ the file immediately — прочитать файл заново</li>
+<li>VERIFY — убедиться, как на самом деле выглядит текст</li>
+<li>CONTINUE — действовать заново, опираясь на реальное содержимое</li>
+</ul>
+<p>Это не &quot;повторить попытку наугад&quot; — это заставить агента <strong>сначала посмотреть правде в глаза</strong>, а потом уже действовать.</p>
+<h3>Уровень 2. Session Recovery — восстановление разговора</h3>
+<p>Иногда весь разговор технически &quot;ломается&quot; — например, из-за ошибки API (<code>session.error</code>). Hook <code>session-recovery</code> умеет распознавать поправимые сбои (<code>isRecoverableError</code>) — вроде <code>tool_result_missing</code> или <code>thinking_block_order</code> — чинит внутреннюю структуру сообщений и <strong>сам</strong> отправляет команду <code>&quot;continue&quot;</code> через <code>ctx.client.session.prompt</code>. Пользователь может даже не заметить, что что-то сломалось.</p>
+<h3>Уровень 3. Context Window Limit Recovery — восстановление после переполнения</h3>
+<p>Когда Anthropic API отвечает ошибкой token limit, Hook <code>anthropic-context-window-limit-recovery</code> распознаёт её (<code>parseAnthropicTokenLimitError</code>), автоматически <strong>сжимает</strong> контекст (<code>executeCompact</code>) и заново отправляет запрос. Не нужно вручную создавать новую сессию.</p>
+<h3>Дополнительный уровень: Delegate Task Retry</h3>
+<p>Hook <code>delegate-task-retry</code> — если переданное через <code>delegate_task</code> поручение провалилось, он автоматически повторяет попытку, используя тот же самый <code>session_id</code>, чтобы не терять уже собранный контекст.</p>
+<h2>Четыре уровня — сводная таблица</h2>
+<div class="table-wrap"><table><thead><tr>
+<th>Уровень</th>
+<th>Hook</th>
+<th>Восстанавливает</th>
+</tr></thead><tbody>
+<tr>
+<td>Уровень инструмента</td>
+<td>Edit Error Recovery</td>
+<td>Одна неудачная правка файла</td>
+</tr>
+<tr>
+<td>Уровень сессии</td>
+<td>Session Recovery</td>
+<td>Крах разговора / ошибка API</td>
+</tr>
+<tr>
+<td>Уровень контекста</td>
+<td>Context Window Limit Recovery</td>
+<td>Token превышен</td>
+</tr>
+<tr>
+<td>Уровень задачи</td>
+<td>Delegate Task Retry</td>
+<td>Провал переданного задания</td>
+</tr>
+</tbody></table></div>
+<h2>Схема восстановления</h2>
+<div class="mermaid-wrap"><pre class="mermaid-source"><code>flowchart TD
+    E[&quot;Что-то пошло не так&quot;] --&gt; T{&quot;Какой уровень\nсбоя?&quot;}
+    T --&gt;|ошибка редактирования| R1[&quot;Прочитать файл заново\nи попробовать снова&quot;]
+    T --&gt;|разговор рухнул| R2[&quot;Починить структуру\nи отправить &#x27;continue&#x27;&quot;]
+    T --&gt;|контекст переполнен| R3[&quot;Сжать контекст\nи повторить запрос&quot;]
+    T --&gt;|поручение провалилось| R4[&quot;Повторить с тем же\nsession_id&quot;]
+    R1 --&gt; OK[&quot;Работа продолжается&quot;]
+    R2 --&gt; OK
+    R3 --&gt; OK
+    R4 --&gt; OK</code></pre><div class="mermaid">flowchart TD
+    E[&quot;Что-то пошло не так&quot;] --&gt; T{&quot;Какой уровень\nсбоя?&quot;}
+    T --&gt;|ошибка редактирования| R1[&quot;Прочитать файл заново\nи попробовать снова&quot;]
+    T --&gt;|разговор рухнул| R2[&quot;Починить структуру\nи отправить &#x27;continue&#x27;&quot;]
+    T --&gt;|контекст переполнен| R3[&quot;Сжать контекст\nи повторить запрос&quot;]
+    T --&gt;|поручение провалилось| R4[&quot;Повторить с тем же\nsession_id&quot;]
+    R1 --&gt; OK[&quot;Работа продолжается&quot;]
+    R2 --&gt; OK
+    R3 --&gt; OK
+    R4 --&gt; OK</div></div>
+<h2>Главная мысль</h2>
+<p><strong>Восстановление в OMO — это не &#x27;попробовать ещё раз&#x27;, а &#x27;понять ошибку и исправить причину&#x27;.</strong> Edit Error Recovery — не тупое повторение действия, а заставить агента сначала перечитать файл. Session Recovery — не перезапуск с нуля, а починка структуры и продолжение. Context Window Recovery — не отказ от задачи, а сжатие и повтор.</p>
+<p>Каждый уровень восстановления <strong>понимает смысл</strong> ошибки и подбирает подходящее лекарство именно для неё.</p>
+<h2>Что дальше</h2>
+<p>А что, если задача слишком большая и один поток работы — слишком медленно? OMO умеет запускать несколько агентов параллельно (Background Agents).</p>
+<p>→ <a href="./07-background-agents.html">Глава 7: Работа в несколько рук</a></p>
+    <nav class="pager"><a href="./05-hook-pipeline.html">← 05 · Невидимые контролёры</a><a href="./07-background-agents.html">07 · Работа в несколько рук →</a></nav>
+  </main>
+</div>
+<footer class="foot">Упрощённый пересказ learn-OMO на русском · <a href="https://github.com/yangheng/learn-OMO">оригинал</a></footer>
+<script src="./app.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
+</body>
+</html>

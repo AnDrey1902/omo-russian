@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Глава 5: Невидимые контролёры (Hook Pipeline) · Oh-My-Opencode — простым языком</title>
+<meta name="description" content="Перевод руководства Oh My OpenCode простым языком.">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<a class="skip" href="#content">Перейти к содержанию</a>
+<header class="topbar">
+  <a class="brand" href="./index.html">Oh-My-Opencode — простым языком</a>
+  <div class="search">
+    <input id="search" type="search" placeholder="Поиск по руководству…  ( / )" autocomplete="off" aria-label="Поиск по руководству">
+    <div id="results" class="results" hidden></div>
+  </div>
+  <button id="theme" class="theme-btn" type="button" aria-label="Переключить тему">Тема</button>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Содержание">
+    <details class="side-toggle" open>
+      <summary>Содержание</summary>
+      <a href="./index.html" class="">Главная</a>
+<a href="./00-architecture.html" class="">Обзор архитектуры</a>
+<a href="./01-plugin-bootstrap.html" class="">01 · Как просыпается OMO</a>
+<a href="./02-sisyphus-planning.html" class="">02 · Начальник получает задание</a>
+<a href="./03-delegation.html" class="">03 · Кто кому что поручает</a>
+<a href="./04-specialist-agents.html" class="">04 · Команда специалистов</a>
+<a href="./05-hook-pipeline.html" class="active">05 · Невидимые контролёры</a>
+<a href="./06-error-recovery.html" class="">06 · Когда что-то ломается</a>
+<a href="./07-background-agents.html" class="">07 · Работа в несколько рук</a>
+<a href="./08-dynamic-prompts.html" class="">08 · Инструкции на лету</a>
+<a href="./09-crafted-tools.html" class="">09 · Крутые инструменты</a>
+<a href="./10-cc-compatibility.html" class="">10 · Дружба со старыми привычками</a>
+<a href="./11-ralph-loop.html" class="">11 · Цикл до победного</a>
+    </details>
+  </nav>
+  <main id="content" class="content">
+<h1>Глава 5: Невидимые контролёры (Hook Pipeline)</h1>
+<blockquote>&gt; <em>&quot;Лучшая инфраструктура — та, которую не замечаешь, пока она тебя не спасла.&quot;</em></blockquote>
+<h2>Что было раньше</h2>
+<p>В <a href="./04-specialist-agents.html">прошлой главе</a> мы познакомились с командой специалистов (Agents). Но пока они работают, каждый вызов инструмента, каждое сообщение и каждое системное событие проходит через <strong>невидимую цепочку Hooks</strong>.</p>
+<h2>Зачем это нужно</h2>
+<p>Во время работы с агентами случается разное: пользователь хочет более глубокого размышления, в проекте есть свои правила оформления кода, память разговора вот-вот переполнится, инструмент редактирования выдал ошибку. Всё это не должно решаться самим Agent вручную — это должно <strong>перехватываться и исправляться прозрачно (transparently)</strong>, за кулисами.</p>
+<h2>Четыре точки входа Hook</h2>
+<p>Hooks цепляются к четырём ключевым моментам:</p>
+<ul>
+<li><code>chat.message</code> — когда приходит сообщение;</li>
+<li><code>event</code> — когда происходит системное событие;</li>
+<li><code>tool.execute.before</code> — прямо перед выполнением инструмента;</li>
+<li><code>tool.execute.after</code> — сразу после выполнения инструмента.</li>
+</ul>
+<h3>Think Mode — режим &quot;подумать подольше&quot; по ключевому слову</h3>
+<p>Hook <code>think-mode</code> смотрит текст твоего сообщения. Если находит ключевое слово вроде &quot;think&quot; — автоматически переключает модель на более &quot;вдумчивый&quot; вариант (<strong>highVariant</strong>) и добавляет конфиг extended thinking. Ты об этом даже не узнаешь — просто ответ станет более продуманным.</p>
+<h3>Rules Injector — внедрение правил проекта</h3>
+<p>Hook <code>rules-injector</code> следит за тем, когда Agent читает, создаёт или редактирует файл (<code>TRACKED_TOOLS = [&quot;read&quot;, &quot;write&quot;, &quot;edit&quot;, &quot;multiedit&quot;]</code>). Он ищет в проекте файлы правил (что-то вроде <code>.cursorrules</code>), проверяет их frontmatter (подходят ли они к текущей ситуации) и <strong>вставляет содержимое прямо в вывод инструмента</strong>. Agent не знает, что такие правила вообще существуют — он просто увидит их в следующий раз, когда будет размышлять.</p>
+<h3>Context Window Monitor — страж памяти разговора</h3>
+<p>Hook <code>context-window-monitor</code> следит за тем, сколько токенов уже израсходовано после каждого <code>tool.execute.after</code>. Когда становится тесно — предупреждает или автоматически сжимает историю (compact).</p>
+<h3>Tool Output Truncator — обрезание слишком длинных ответов</h3>
+<p>Если инструмент вернул огромный кусок текста, <code>tool-output-truncator</code> автоматически его обрезает — чтобы один такой ответ не занял всю доступную context window.</p>
+<h3>Directory Agents Injector — настройки проекта</h3>
+<p>Hook <code>directory-agents-injector</code> обнаруживает конфигурацию <code>.agents</code> в папке проекта и автоматически подключает её к работе agents конкретно в этом проекте.</p>
+<h3>Двойной контроль на каждый вызов инструмента</h3>
+<p>Каждый вызов Tool проходит <strong>два поста проверки</strong>: <code>tool.execute.before</code> (можно изменить параметры, добавить правила) и <code>tool.execute.after</code> (можно обрезать вывод, исправить ошибку). Все Hooks в очереди вызываются один за другим, например:</p>
+<pre><code>tool.execute.before → rules-injector, comment-checker, ...
+tool.execute.after → tool-output-truncator, context-window-monitor, edit-error-recovery, ...</code></pre>
+<h3>Всё можно включить и выключить</h3>
+<p>Каждый Hook можно отключить через <code>disabled_hooks: [&quot;think-mode&quot;]</code> в настройках. Не нравится Think Mode — просто выключи именно его, остальные продолжат работать.</p>
+<h2>Схема Hook Pipeline</h2>
+<div class="mermaid-wrap"><pre class="mermaid-source"><code>flowchart LR
+    MSG[&quot;chat.message\nсообщение приходит&quot;] --&gt; H1[&quot;Hook: think-mode&quot;]
+    H1 --&gt; AGENT[&quot;Agent работает&quot;]
+    AGENT --&gt; B1[&quot;tool.execute.before&quot;]
+    B1 --&gt; B2[&quot;Hook: rules-injector&quot;]
+    B2 --&gt; TOOL[&quot;Tool выполняется&quot;]
+    TOOL --&gt; A1[&quot;tool.execute.after&quot;]
+    A1 --&gt; A2[&quot;Hook: tool-output-truncator&quot;]
+    A2 --&gt; A3[&quot;Hook: context-window-monitor&quot;]
+    A3 --&gt; A4[&quot;Hook: edit-error-recovery&quot;]
+    A4 --&gt; RESULT[&quot;Agent видит\nулучшенный результат&quot;]</code></pre><div class="mermaid">flowchart LR
+    MSG[&quot;chat.message\nсообщение приходит&quot;] --&gt; H1[&quot;Hook: think-mode&quot;]
+    H1 --&gt; AGENT[&quot;Agent работает&quot;]
+    AGENT --&gt; B1[&quot;tool.execute.before&quot;]
+    B1 --&gt; B2[&quot;Hook: rules-injector&quot;]
+    B2 --&gt; TOOL[&quot;Tool выполняется&quot;]
+    TOOL --&gt; A1[&quot;tool.execute.after&quot;]
+    A1 --&gt; A2[&quot;Hook: tool-output-truncator&quot;]
+    A2 --&gt; A3[&quot;Hook: context-window-monitor&quot;]
+    A3 --&gt; A4[&quot;Hook: edit-error-recovery&quot;]
+    A4 --&gt; RESULT[&quot;Agent видит\nулучшенный результат&quot;]</div></div>
+<h2>Главная мысль</h2>
+<p><strong>Hooks — это промежуточный слой OMO (middleware).</strong> Как и в веб-серверах (например, Express.js), каждое событие проходит через цепочку обработчиков. Но у OMO это устроено более тонко — есть четыре разных lifecycle-точки, и на каждую точку — своя цепочка Hooks.</p>
+<p>Плюс такого устройства — <strong>разделение ответственности (separation of concerns)</strong>: Think Mode не знает о Rules Injector, тот — о Context Window Monitor. Каждый занимается своим делом, а взаимодействуют они, изменяя input/output.</p>
+<h2>Что дальше</h2>
+<p>В цепочке Hooks есть особенно важный — <code>edit-error-recovery</code>, который автоматически чинит ошибки редактирования. Вместе с <code>session-recovery</code> и защитой от переполнения контекста OMO строит целую систему устойчивости к ошибкам.</p>
+<p>→ <a href="./06-error-recovery.html">Глава 6: Когда что-то ломается</a></p>
+    <nav class="pager"><a href="./04-specialist-agents.html">← 04 · Команда специалистов</a><a href="./06-error-recovery.html">06 · Когда что-то ломается →</a></nav>
+  </main>
+</div>
+<footer class="foot">Упрощённый пересказ learn-OMO на русском · <a href="https://github.com/yangheng/learn-OMO">оригинал</a></footer>
+<script src="./app.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
+</body>
+</html>

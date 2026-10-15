@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Глава 11: Цикл до победного (Ralph Loop) · Oh-My-Opencode — простым языком</title>
+<meta name="description" content="Перевод руководства Oh My OpenCode простым языком.">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<a class="skip" href="#content">Перейти к содержанию</a>
+<header class="topbar">
+  <a class="brand" href="./index.html">Oh-My-Opencode — простым языком</a>
+  <div class="search">
+    <input id="search" type="search" placeholder="Поиск по руководству…  ( / )" autocomplete="off" aria-label="Поиск по руководству">
+    <div id="results" class="results" hidden></div>
+  </div>
+  <button id="theme" class="theme-btn" type="button" aria-label="Переключить тему">Тема</button>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Содержание">
+    <details class="side-toggle" open>
+      <summary>Содержание</summary>
+      <a href="./index.html" class="">Главная</a>
+<a href="./00-architecture.html" class="">Обзор архитектуры</a>
+<a href="./01-plugin-bootstrap.html" class="">01 · Как просыпается OMO</a>
+<a href="./02-sisyphus-planning.html" class="">02 · Начальник получает задание</a>
+<a href="./03-delegation.html" class="">03 · Кто кому что поручает</a>
+<a href="./04-specialist-agents.html" class="">04 · Команда специалистов</a>
+<a href="./05-hook-pipeline.html" class="">05 · Невидимые контролёры</a>
+<a href="./06-error-recovery.html" class="">06 · Когда что-то ломается</a>
+<a href="./07-background-agents.html" class="">07 · Работа в несколько рук</a>
+<a href="./08-dynamic-prompts.html" class="">08 · Инструкции на лету</a>
+<a href="./09-crafted-tools.html" class="">09 · Крутые инструменты</a>
+<a href="./10-cc-compatibility.html" class="">10 · Дружба со старыми привычками</a>
+<a href="./11-ralph-loop.html" class="active">11 · Цикл до победного</a>
+    </details>
+  </nav>
+  <main id="content" class="content">
+<h1>Глава 11: Цикл до победного (Ralph Loop)</h1>
+<blockquote>&gt; <em>&quot;Ральфу не нужно, чтобы за ним следили. Дай ему задачу — он будет крутить цикл, пока не закончит. Или честно скажет, что не может.&quot;</em></blockquote>
+<h2>Что было раньше</h2>
+<p>В <a href="./10-cc-compatibility.html">прошлой главе</a> мы увидели, как OMO дружит со старыми привычками пользователей Claude Code. Все части собраны. Теперь — самая важная деталь, которая связывает всё воедино.</p>
+<h2>Зачем это нужно</h2>
+<p>У ИИ-агентов есть общая проблема: они часто останавливаются на полпути. Модель &quot;выговорилась&quot; и замолчала, а задача ещё не закончена. Пользователю приходится вручную писать &quot;продолжай&quot;. А если задача требует 20 таких кругов подряд? Именно для этого существует <strong>Ralph Loop</strong> — он <strong>сам</strong> крутит работу, пока задача по-настоящему не будет завершена.</p>
+<h2>Как это работает</h2>
+<h3>Запуск Ralph Loop</h3>
+<p>Есть метод <code>startLoop(sessionID, prompt, options)</code> с параметрами <code>maxIterations</code>, <code>completionPromise</code>, <code>ultrawork</code>. Цикл можно запустить командой <code>/ralph-loop &quot;закончи этот рефакторинг&quot;</code> или он включается автоматически, когда система замечает шаблон сообщения с тегом <code>&lt;user-task&gt;</code> внутри.</p>
+<h3>RalphLoopState — что цикл помнит о себе</h3>
+<p>Пока цикл активен, он хранит состояние <code>RalphLoopState</code>:</p>
+<pre><code>active            — включён ли цикл сейчас
+iteration         — текущий круг
+max_iterations    — максимум кругов (по умолчанию 100)
+completion_promise — слово-сигнал завершения (по умолчанию &quot;DONE&quot;)
+started_at        — когда начался
+prompt            — исходная задача
+ultrawork         — включён ли усиленный режим работы</code></pre>
+<h3>Как проходит один круг</h3>
+<p>После каждого ответа агента цикл проверяет: содержит ли вывод <code>&lt;promise&gt;DONE&lt;/promise&gt;</code>? Если да — цикл останавливается, задача выполнена. Если нет — <code>iteration++</code>, и агенту автоматически отправляется <strong>continuation prompt</strong>.</p>
+<h3>Continuation Prompt — сообщение &quot;продолжай&quot;</h3>
+<p>Вместе с командой продолжить, агент получает системную директиву с номером текущего круга и максимумом, напоминанием оглянуться на прогресс, продолжить именно с того места, где остановился, и чёткое указание — выдать <code>&lt;promise&gt;{{PROMISE}}&lt;/promise&gt;</code>, только когда всё <strong>по-настоящему</strong> закончено. Так агент каждый раз видит, на каком он круге и что было исходной задачей (<code>{{PROMPT}}</code>) — это сохраняет <strong>связность</strong> работы между кругами.</p>
+<h3>Completion Promise — сигнал завершения</h3>
+<pre><code>COMPLETION_TAG_PATTERN = /&lt;promise&gt;(.*?)&lt;\/promise&gt;/is
+DEFAULT_COMPLETION_PROMISE = &quot;DONE&quot;
+DEFAULT_MAX_ITERATIONS = 100</code></pre>
+<p>Агент сообщает о завершении конкретной, легко распознаваемой меткой <code>&lt;promise&gt;DONE&lt;/promise&gt;</code>, а не размытой фразой &quot;кажется, готово&quot;. Это чёткий, структурированный сигнал.</p>
+<h3>Хранение состояния</h3>
+<p>Состояние Ralph Loop сохраняется на диск в файл <code>.sisyphus/ralph-loop.local.md</code> через <code>readState()</code> / <code>writeState()</code> / <code>clearState()</code> / <code>incrementIteration()</code> — так что, даже если процесс перезапустится, цикл можно возобновить с того же места.</p>
+<h3>ULW Loop — усиленный режим работы</h3>
+<p>Команда <code>ulw-loop</code> запускает <code>startLoop</code> с <code>ultrawork: true</code> — более &quot;напористый&quot; режим работы.</p>
+<h3>Меры безопасности</h3>
+<div class="table-wrap"><table><thead><tr>
+<th>Механизм</th>
+<th>Зачем</th>
+</tr></thead><tbody>
+<tr>
+<td><code>max_iterations</code></td>
+<td>Не даёт циклу крутиться бесконечно (по умолчанию 100)</td>
+</tr>
+<tr>
+<td><code>completion_promise</code></td>
+<td>Чёткая метка, не полагается на догадки</td>
+</tr>
+<tr>
+<td><code>/cancel-ralph</code></td>
+<td>Пользователь может остановить цикл в любой момент</td>
+</tr>
+<tr>
+<td>Сохранение состояния</td>
+<td>Можно продолжить после перезапуска</td>
+</tr>
+</tbody></table></div>
+<h2>Схема работы Ralph Loop</h2>
+<div class="mermaid-wrap"><pre class="mermaid-source"><code>flowchart TD
+    START[&quot;Задача запущена\nв Ralph Loop&quot;] --&gt; WORK[&quot;Agent работает\nодин iteration&quot;]
+    WORK --&gt; CHECK{&quot;Есть\n&#x27;&lt;promise&gt;DONE&lt;/promise&gt;&#x27;?&quot;}
+    CHECK --&gt;|да| DONE[&quot;Цикл завершён\nЗадача выполнена&quot;]
+    CHECK --&gt;|нет| INC[&quot;iteration++&quot;]
+    INC --&gt; LIMIT{&quot;Достигнут\nmax_iterations?&quot;}
+    LIMIT --&gt;|нет| CONT[&quot;Отправить continuation prompt\nс напоминанием о задаче&quot;]
+    CONT --&gt; WORK
+    LIMIT --&gt;|да| STOP[&quot;Цикл останавливается\nпо лимиту&quot;]</code></pre><div class="mermaid">flowchart TD
+    START[&quot;Задача запущена\nв Ralph Loop&quot;] --&gt; WORK[&quot;Agent работает\nодин iteration&quot;]
+    WORK --&gt; CHECK{&quot;Есть\n&#x27;&lt;promise&gt;DONE&lt;/promise&gt;&#x27;?&quot;}
+    CHECK --&gt;|да| DONE[&quot;Цикл завершён\nЗадача выполнена&quot;]
+    CHECK --&gt;|нет| INC[&quot;iteration++&quot;]
+    INC --&gt; LIMIT{&quot;Достигнут\nmax_iterations?&quot;}
+    LIMIT --&gt;|нет| CONT[&quot;Отправить continuation prompt\nс напоминанием о задаче&quot;]
+    CONT --&gt; WORK
+    LIMIT --&gt;|да| STOP[&quot;Цикл останавливается\nпо лимиту&quot;]</div></div>
+<h2>Главная мысль</h2>
+<p><strong>Ralph Loop — это клей, который скрепляет все возможности OMO.</strong> На каждом его круге: Hook Pipeline перехватывает каждый вызов инструмента (think-mode, rules-injection, error recovery), Error Recovery автоматически чинит сбои редактирования и падения сессии, Context Window Recovery сжимает контекст при переполнении, Background Agents могут параллельно искать и работать, а Dynamic Prompts каждый раз собирают актуальный набор инструментов.</p>
+<p>Ralph Loop — не отдельная функция сама по себе. Это <strong>двигатель</strong>, который заставляет все механизмы из предыдущих десяти глав работать <strong>непрерывно</strong>. Дай ему задачу — и он использует все эти механизмы, круг за кругом, пока агент не выдаст ту самую метку <code>&lt;promise&gt;DONE&lt;/promise&gt;</code>.</p>
+<p>Это и есть главное обещание OMO: <strong>дай мне задачу — я буду работать, пока она не будет сделана.</strong></p>
+<h2>Конец истории</h2>
+<p>Ты написал: &quot;Помоги мне переделать этот кусок кода&quot;. Plugin запустился, Sisyphus разобрал задачу и передал её специалистам через <code>delegate_task</code>, Hook Pipeline усилил каждый шаг, Error Recovery справилось с неожиданностями, Background Agents работали параллельно, а Ralph Loop не останавливался — пока переделка не была закончена.</p>
+<p>От первой строчки <code>index.ts</code> до последней метки <code>&lt;promise&gt;DONE&lt;/promise&gt;</code>. Вот и весь путь Oh My OpenCode.</p>
+<hr>
+<p>← <a href="./10-cc-compatibility.html">Глава 10: Дружба со старыми привычками</a> | <a href="./README.html">Вернуться к оглавлению</a></p>
+    <nav class="pager"><a href="./10-cc-compatibility.html">← 10 · Дружба со старыми привычками</a></nav>
+  </main>
+</div>
+<footer class="foot">Упрощённый пересказ learn-OMO на русском · <a href="https://github.com/yangheng/learn-OMO">оригинал</a></footer>
+<script src="./app.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
+</body>
+</html>

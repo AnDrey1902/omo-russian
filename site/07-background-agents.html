@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Глава 7: Работа в несколько рук (Background Agents) · Oh-My-Opencode — простым языком</title>
+<meta name="description" content="Перевод руководства Oh My OpenCode простым языком.">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<a class="skip" href="#content">Перейти к содержанию</a>
+<header class="topbar">
+  <a class="brand" href="./index.html">Oh-My-Opencode — простым языком</a>
+  <div class="search">
+    <input id="search" type="search" placeholder="Поиск по руководству…  ( / )" autocomplete="off" aria-label="Поиск по руководству">
+    <div id="results" class="results" hidden></div>
+  </div>
+  <button id="theme" class="theme-btn" type="button" aria-label="Переключить тему">Тема</button>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Содержание">
+    <details class="side-toggle" open>
+      <summary>Содержание</summary>
+      <a href="./index.html" class="">Главная</a>
+<a href="./00-architecture.html" class="">Обзор архитектуры</a>
+<a href="./01-plugin-bootstrap.html" class="">01 · Как просыпается OMO</a>
+<a href="./02-sisyphus-planning.html" class="">02 · Начальник получает задание</a>
+<a href="./03-delegation.html" class="">03 · Кто кому что поручает</a>
+<a href="./04-specialist-agents.html" class="">04 · Команда специалистов</a>
+<a href="./05-hook-pipeline.html" class="">05 · Невидимые контролёры</a>
+<a href="./06-error-recovery.html" class="">06 · Когда что-то ломается</a>
+<a href="./07-background-agents.html" class="active">07 · Работа в несколько рук</a>
+<a href="./08-dynamic-prompts.html" class="">08 · Инструкции на лету</a>
+<a href="./09-crafted-tools.html" class="">09 · Крутые инструменты</a>
+<a href="./10-cc-compatibility.html" class="">10 · Дружба со старыми привычками</a>
+<a href="./11-ralph-loop.html" class="">11 · Цикл до победного</a>
+    </details>
+  </nav>
+  <main id="content" class="content">
+<h1>Глава 7: Работа в несколько рук (Background Agents)</h1>
+<blockquote>&gt; <em>&quot;Один агент — это один поток. Несколько агентов — это уже настоящая работа в команде.&quot;</em></blockquote>
+<h2>Что было раньше</h2>
+<p>В <a href="./06-error-recovery.html">прошлой главе</a> мы увидели, как OMO сам справляется с ошибками. Теперь Sisyphus понимает: переделка слишком большая — нужно искать код сразу в нескольких модулях и выполнять несколько независимых подзадач одновременно.</p>
+<h2>Зачем это нужно</h2>
+<p>Обычно вся система работает &quot;в один поток&quot; — в один момент времени только один Agent что-то делает. Но многие вещи можно делать параллельно: искать код сразу в нескольких направлениях, менять несколько независимых файлов одновременно.</p>
+<h2>Как это устроено</h2>
+<h3>BackgroundManager — диспетчер фоновых задач</h3>
+<p><code>BackgroundManager</code> умеет через <code>launch()</code> создавать отдельные фоновые OpenCode-сессии — каждая со своим Agent внутри. Они пользуются общей файловой системой (видят один и тот же код), но у каждой — <strong>своя отдельная context window</strong>, они не мешают друг другу.</p>
+<h3>ConcurrencyManager — контроль количества одновременных задач</h3>
+<p><code>ConcurrencyManager</code> следит, чтобы одновременно не запускалось слишком много агентов — если лимит превышен, лишние задачи становятся в очередь и ждут.</p>
+<h3>Background Tools — инструменты для работы с фоном</h3>
+<p>Регистрируются инструменты <code>background_output(task_id)</code> — забрать результат фоновой задачи, и <code>background_cancel(task_id/all)</code> — отменить фоновую задачу.</p>
+<h3>Главное правило: Explore и Librarian — всегда в фоне</h3>
+<p>В prompt Sisyphus прямо написано: &quot;Explore/Librarian = Grep, not consultants. CORRECT: Always background, always parallel&quot;. Он вызывает <code>delegate_task(subagent_type=&quot;explore&quot;, run_in_background=true, ...)</code> сразу для нескольких запросов и <strong>продолжает работать немедленно</strong>, а результаты забирает через <code>background_output</code>, когда они понадобятся.</p>
+<h3>TmuxSessionManager — визуализация в терминале</h3>
+<p>Есть необязательная возможность (по умолчанию <code>enabled: false</code>) — показывать, что делает каждый фоновый агент, прямо в отдельных окнах tmux, чтобы можно было &quot;подглядывать&quot; за прогрессом.</p>
+<h3>Жизненный цикл фоновой задачи</h3>
+<ul>
+<li><code>TASK_TTL_MS</code> — максимум около 30 минут на задачу</li>
+<li><code>MIN_STABILITY_TIME_MS</code> — минимум 10 секунд &quot;на разгон&quot;</li>
+<li><code>DEFAULT_STALE_TIMEOUT_MS</code> — 3 минуты без ответа = задача считается зависшей (stale)</li>
+</ul>
+<h3>Background Notification</h3>
+<p>Hook <code>background-notification</code> — когда фоновая задача завершается (успешно или с ошибкой), приходит уведомление в основную сессию, и Sisyphus сам решает, нужно ли забирать результат прямо сейчас.</p>
+<h2>Схема параллельной работы</h2>
+<div class="mermaid-wrap"><pre class="mermaid-source"><code>flowchart TD
+    S[&quot;Sisyphus&quot;] --&gt; D[&quot;BackgroundManager&quot;]
+    D --&gt; T1[&quot;Explore ищет\nв модуле A&quot;]
+    D --&gt; T2[&quot;Explore ищет\nв модуле B&quot;]
+    D --&gt; T3[&quot;Librarian ищет\nдокументацию&quot;]
+    S --&gt;|&quot;продолжает работать\nне дожидаясь&quot;| WORK[&quot;Другая работа&quot;]
+    T1 --&gt; RES[&quot;Результаты собраны&quot;]
+    T2 --&gt; RES
+    T3 --&gt; RES
+    WORK --&gt; COLLECT[&quot;background_output()\nзабирает результаты&quot;]
+    RES --&gt; COLLECT</code></pre><div class="mermaid">flowchart TD
+    S[&quot;Sisyphus&quot;] --&gt; D[&quot;BackgroundManager&quot;]
+    D --&gt; T1[&quot;Explore ищет\nв модуле A&quot;]
+    D --&gt; T2[&quot;Explore ищет\nв модуле B&quot;]
+    D --&gt; T3[&quot;Librarian ищет\nдокументацию&quot;]
+    S --&gt;|&quot;продолжает работать\nне дожидаясь&quot;| WORK[&quot;Другая работа&quot;]
+    T1 --&gt; RES[&quot;Результаты собраны&quot;]
+    T2 --&gt; RES
+    T3 --&gt; RES
+    WORK --&gt; COLLECT[&quot;background_output()\nзабирает результаты&quot;]
+    RES --&gt; COLLECT</div></div>
+<h2>Главная мысль</h2>
+<p><strong>Background Agent — это не &#x27;ещё одна вкладка&#x27;, а настоящая структурированная параллельность.</strong> BackgroundManager следит за количеством одновременных задач (concurrency), управляет жизненным циклом задачи, обрабатывает stale-детект. Каждый фоновый агент работает независимо, не мешая остальным.</p>
+<p>Sisyphus работает так: запускает сразу 3-5 <code>explore</code>/<code>librarian</code> задач в фон, сам продолжает заниматься другими делами, а когда нужны результаты — забирает их через <code>background_output</code>. Это не &quot;подождать асинхронно&quot; — это <strong>настоящий параллельный рабочий процесс</strong>.</p>
+<h2>Что дальше</h2>
+<p>Prompt-инструкции этих агентов не написаны раз и навсегда — они собираются &quot;на лету&quot; из того, какие agents, tools и skills доступны прямо сейчас.</p>
+<p>→ <a href="./08-dynamic-prompts.html">Глава 8: Инструкции на лету</a></p>
+    <nav class="pager"><a href="./06-error-recovery.html">← 06 · Когда что-то ломается</a><a href="./08-dynamic-prompts.html">08 · Инструкции на лету →</a></nav>
+  </main>
+</div>
+<footer class="foot">Упрощённый пересказ learn-OMO на русском · <a href="https://github.com/yangheng/learn-OMO">оригинал</a></footer>
+<script src="./app.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
+</body>
+</html>
